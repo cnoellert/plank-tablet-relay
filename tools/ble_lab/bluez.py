@@ -137,7 +137,7 @@ class Server(dbus.service.Object):
         self.exclusive_adapter = getattr(args, 'exclusive_adapter', False)
         self.notify_systemd = getattr(args, 'notify_systemd', False)
         self.native = None if args.transport_only else Native(args.library, args.state_dir)
-        self.coc = ProductionCoC(self.native, lambda: not self.peer) if self.native else None
+        self.coc = ProductionCoC(self.native, lambda: not self.native.pairing_busy) if self.native else None
         self.capture = None if args.transport_only else Capture(args.tablet, self.button)
         self.peer = None
         self.notifying = False

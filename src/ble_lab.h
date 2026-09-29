@@ -24,6 +24,7 @@ int pltr_ble_lab_tick(PltrBleLab *lab, uint64_t now_ms,
 int pltr_ble_lab_observing(const PltrBleLab *lab);
 // Local diagnostic state only: 0 = not waiting, 1 = new Client, 2 = known Client.
 int pltr_ble_lab_approval_pending(const PltrBleLab *lab);
+int pltr_ble_lab_pairing_busy(const PltrBleLab *lab);
 int pltr_ble_lab_sample(PltrBleLab *lab, const uint8_t *payload, size_t size,
     uint8_t *out, size_t capacity, size_t *written);
 // Serve one accepted Linux LE Credit Based L2CAP channel with the same saved

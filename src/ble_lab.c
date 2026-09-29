@@ -29,6 +29,11 @@ PltrIdentityStore *pltr_ble_lab_identity_store(PltrBleLab *lab) {
     return lab ? &lab->store : NULL;
 }
 
+int pltr_ble_lab_pairing_busy(const PltrBleLab *lab) {
+    return lab && (lab->mode == 2 || lab->mode == 3) &&
+        lab->wire.stage != PLTR_PAIR_WIRE_DONE;
+}
+
 static void clear_presses(PltrBleLab *lab) {
     lab->button = lab->held = 0;
     lab->presses = 0;

@@ -32,6 +32,7 @@ class Native:
                       C.c_size_t, C.POINTER(C.c_size_t)], C.c_int),
             'observing': ([C.c_void_p], C.c_int),
             'approval_pending': ([C.c_void_p], C.c_int),
+            'pairing_busy': ([C.c_void_p], C.c_int),
             'sample': ([C.c_void_p, C.c_void_p, C.c_size_t,
                         C.c_void_p, C.c_size_t, C.POINTER(C.c_size_t)], C.c_int),
             'run_coc_session': ([C.c_void_p, C.c_int, C.c_int], C.c_int),
@@ -87,6 +88,10 @@ class Native:
     @property
     def approval_pending(self):
         return self.lib.pltr_ble_lab_approval_pending(self.handle)
+
+    @property
+    def pairing_busy(self):
+        return bool(self.lib.pltr_ble_lab_pairing_busy(self.handle))
 
     def sample(self, payload):
         return self.output('sample', C.create_string_buffer(payload), len(payload))

@@ -1,15 +1,18 @@
 .TH PLANK-TABLET-RELAY-BLE 1 "September 2026" "PLANK" "User Commands"
 .SH NAME
-plank-tablet-relay-ble \- Bluetooth tablet readings relay
+plank-tablet-relay-ble \- Bluetooth tablet relay
 .SH SYNOPSIS
 .B plank-tablet-relay-ble
 .RI [ --config " file" ]
 .RI [ --check-config ]
 .SH DESCRIPTION
-Publishes PLANK Tablet Setup's Bluetooth LE service and reads qualifying
-Wacom pen and tablet-button input through Linux input devices.
+Publishes PLANK Tablet Setup's Bluetooth LE pairing service and a production
+LE Credit Based L2CAP channel. Reads qualifying Wacom pen and tablet-button
+input through Linux input and raw-HID devices.
 The headset approves its first connection using three tablet-button presses;
 subsequent connections authenticate the saved keys.
+The production channel sends raw-HID reports only after saved-key Noise
+authentication and a PLANK workstation session are established.
 Normally run through the plank-tablet-relay-ble system service.
 .SH OPTIONS
 .TP

@@ -143,6 +143,23 @@ int main() {
     assert(server_result == 0);
     close(sockets[0]);
     pltr_link_clear(&client);
+
+    assert(pltr_identity_store_remove(&store, client_public) == 0);
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
+    server_result = -2;
+    std::thread unknown_bluetooth([&] {
+        server_result = pltr_run_authenticated_stream_session(
+            sockets[1], store, -1, 1);
+        close(sockets[1]);
+    });
+    assert(pltr_link_init(&client, PLTR_NOISE_INITIATOR, client_private,
+                          store.public_key, nullptr, nullptr, 1) == 0);
+    assert(pltr_link_start(&client, output.data(), output.size(), &size) == 0);
+    send_bytes(sockets[0], output.data(), size);
+    unknown_bluetooth.join();
+    assert(server_result == -1);
+    close(sockets[0]);
+    pltr_link_clear(&client);
     assert(pltr_run_authenticated_stream_session(-1, store, -1, 1) == -1);
     assert(pltr_run_authenticated_stream_session(-1, store, -1, 3) == -1);
 

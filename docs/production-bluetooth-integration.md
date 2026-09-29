@@ -26,16 +26,16 @@ paths have unit and Linux package tests, but no physical CoC link test yet.
 
 This change enables a Bluetooth tablet to feed the **existing TCP Relay**
 after Linux hardware qualification. It also implements the Relay end of a
-production Bluetooth channel. The Vision Pro app still uses TCP for live
-sessions. Completing the second hop needs:
+production Bluetooth channel. A separate draft Vision Pro Client branch now
+implements CoreBluetooth discovery, physical-button pairing, PSM reading,
+`openL2CAPChannel`, and the BLE-specific Noise prologue. The installed app
+still uses TCP for live sessions. Completing the second hop needs:
 
-1. A Vision Pro CoreBluetooth connection path that reads the PSM and opens
-   `CBPeripheral.openL2CAPChannel`, using the BLE-specific Noise prologue.
-2. A pairing path in the PLANK app to provision its own Client key into the
-   Bluetooth service. Alan's separate Tablet Setup app uses a different
-   Keychain namespace; its pairing does not authorize the PLANK app.
-3. Physical LE CoC qualification on the NUC or NanoPi: PSM allocation,
+1. Physical LE CoC qualification on the NUC or NanoPi: PSM allocation,
    sustained raw-HID throughput, reconnects, and simultaneous Wacom Bluetooth.
+2. A signed Client/Relay installation after that qualification. Alan's
+   separate Tablet Setup app uses a different Keychain namespace; its pairing
+   does not authorize the PLANK app.
 
 Offline validation covers the HID identity parser and existing protocol tests.
 The full Linux worker build and physical checks remain required: tablet sleep

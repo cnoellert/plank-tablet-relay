@@ -20,7 +20,8 @@ bool send_bounded(int fd, const std::uint8_t *data, std::size_t size,
         pollfd fds[2] = {{fd, POLLOUT, 0}, {stop_fd, POLLIN, 0}};
         const int result = poll(fds, stop_fd >= 0 ? 2 : 1, 1000);
         if (result < 0 && errno == EINTR) continue;
-        if (result <= 0 || (stop_fd >= 0 && fds[1].revents) ||
+        if (result == 0) continue; // backpressure is not a broken link
+        if (result < 0 || (stop_fd >= 0 && fds[1].revents) ||
             (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL))) return false;
         const ssize_t sent = send(fd, data, size, MSG_DONTWAIT | MSG_NOSIGNAL);
         if (sent < 0 && (errno == EINTR || errno == EAGAIN)) continue;

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(plank_tablet_relay LANGUAGES C CXX)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 enable_testing()
 add_library(plank_relay_protocol STATIC src/protocol.c src/session.c)
@@ -145,6 +146,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/ble_controller_test.py")
         add_test(NAME ble_service_test COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/ble_service_test.py")
+        add_test(NAME ble_coc_test COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/ble_coc_test.py")
 
         add_executable(link_test tests/link_test.c)
         target_link_libraries(link_test PRIVATE plank_relay_link)
@@ -198,6 +201,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_compile_features(plank_relay_tcp_session PUBLIC cxx_std_17)
         target_link_libraries(plank_relay_tcp_session PUBLIC
             plank_relay_session_dispatcher plank_relay_identity)
+
+        add_library(plank_relay_coc_stream STATIC src/coc_stream.cpp)
+        target_include_directories(plank_relay_coc_stream PUBLIC src)
+        target_compile_features(plank_relay_coc_stream PUBLIC cxx_std_17)
+        target_link_libraries(plank_relay_coc_stream PUBLIC plank_relay_tcp_session)
+        target_sources(plank_ble_lab PRIVATE src/ble_production.cpp)
+        target_link_libraries(plank_ble_lab PRIVATE plank_relay_coc_stream Threads::Threads)
+
+        add_executable(coc_stream_test tests/coc_stream_test.cpp)
+        target_link_libraries(coc_stream_test PRIVATE plank_relay_coc_stream)
+        add_test(NAME coc_stream_test COMMAND coc_stream_test)
 
         add_library(plank_relay_tcp_pair_session STATIC src/tcp_pair_session.cpp)
         target_include_directories(plank_relay_tcp_pair_session PUBLIC src)

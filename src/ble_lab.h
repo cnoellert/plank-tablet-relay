@@ -26,6 +26,10 @@ int pltr_ble_lab_observing(const PltrBleLab *lab);
 int pltr_ble_lab_approval_pending(const PltrBleLab *lab);
 int pltr_ble_lab_sample(PltrBleLab *lab, const uint8_t *payload, size_t size,
     uint8_t *out, size_t capacity, size_t *written);
+// Serve one accepted Linux LE Credit Based L2CAP channel with the same saved
+// identity and raw-HID worker as TCP. Pairing must be idle for its lifetime.
+// The caller owns coc_fd and wakes stop_fd to interrupt the session.
+int pltr_ble_lab_run_coc_session(PltrBleLab *lab, int coc_fd, int stop_fd);
 #ifdef __cplusplus
 }
 #endif

@@ -9,6 +9,7 @@ import signal
 import time
 
 from .capture import Capture
+from .coc import ProductionCoC
 from .controller import clear_advertisements, disable_address_resolution
 from .notify import ready
 from .native import Native, ProtocolError
@@ -19,6 +20,7 @@ RX_UUID = '462f3a11-7a31-4ab3-9e7f-c36af495ecf0'
 TX_UUID = '462f3a12-7a31-4ab3-9e7f-c36af495ecf0'
 ECHO_RX_UUID = '462f3a13-7a31-4ab3-9e7f-c36af495ecf0'
 ECHO_TX_UUID = '462f3a14-7a31-4ab3-9e7f-c36af495ecf0'
+PSM_UUID = 'abdd3056-28fa-441d-a470-55a75a52553a'
 PROPERTIES = 'org.freedesktop.DBus.Properties'
 OBJECTS = 'org.freedesktop.DBus.ObjectManager'
 GATT = 'org.bluez.GattCharacteristic1'
@@ -108,6 +110,22 @@ class Characteristic(Object):
             self.endpoint.queue.confirm()
 
 
+class PSMCharacteristic(Object):
+    def __init__(self, server):
+        self.server = server
+        super().__init__(server.bus, BASE + '/service/psm', GATT, {
+            'UUID': PSM_UUID,
+            'Service': dbus.ObjectPath(BASE + '/service'),
+            'Flags': dbus.Array(['read'], signature='s')})
+
+    @dbus.service.method(GATT, in_signature='a{sv}', out_signature='ay')
+    def ReadValue(self, options):
+        if not self.server.coc or not self.server.coc.psm:
+            raise Rejected('Production Bluetooth channel unavailable.')
+        psm = self.server.coc.psm
+        return dbus.Array([psm & 0xff, psm >> 8], signature='y')
+
+
 class Server(dbus.service.Object):
     def __init__(self, args):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -119,6 +137,7 @@ class Server(dbus.service.Object):
         self.exclusive_adapter = getattr(args, 'exclusive_adapter', False)
         self.notify_systemd = getattr(args, 'notify_systemd', False)
         self.native = None if args.transport_only else Native(args.library, args.state_dir)
+        self.coc = ProductionCoC(self.native, lambda: not self.peer) if self.native else None
         self.capture = None if args.transport_only else Capture(args.tablet, self.button)
         self.peer = None
         self.notifying = False
@@ -132,6 +151,7 @@ class Server(dbus.service.Object):
         self.rx = Characteristic(self, False) if self.native else None
         self.tx = Characteristic(self, True) if self.native else None
         self.echo_rx, self.echo_tx = Characteristic(self, False, True), Characteristic(self, True, True)
+        self.psm_characteristic = PSMCharacteristic(self) if self.coc else None
         self.advertisement = Advertisement(self.bus, getattr(args, 'name', 'PLANK Relay Lab'))
         self.gatt_registered = self.advertising = False
         self.bus.add_signal_receiver(self.device_changed, dbus_interface=PROPERTIES,
@@ -146,7 +166,8 @@ class Server(dbus.service.Object):
     @dbus.service.method(OBJECTS, out_signature='a{oa{sa{sv}}}')
     def GetManagedObjects(self):
         return {dbus.ObjectPath(obj.path): {obj.interface: obj.properties}
-                for obj in (self.service, self.rx, self.tx, self.echo_rx, self.echo_tx) if obj is not None}
+                for obj in (self.service, self.rx, self.tx, self.echo_rx, self.echo_tx,
+                            self.psm_characteristic) if obj is not None}
 
     def emit_echo(self, data):
         if not self.echo.peer or not self.echo.notifying:
@@ -168,8 +189,8 @@ class Server(dbus.service.Object):
         self.tx.PropertiesChanged(GATT, {'Value': dbus.Array(data, signature='y')}, [])
 
     def receive(self, data, options):
-        if not self.native or self.echo.peer:
-            raise Rejected('Bluetooth transport test is active; no pairing request accepted.')
+        if not self.native or self.echo.peer or (self.coc and self.coc.active):
+            raise Rejected('Bluetooth data channel is active; pairing is unavailable.')
         try:
             peer = write_peer(data, options, self.adapter, self.notifying, self.peer)
         except ValueError as error:
@@ -295,6 +316,11 @@ class Server(dbus.service.Object):
             disable_address_resolution(self.adapter.rsplit('/', 1)[1])
             print('Controller address-resolution workaround applied.', flush=True)
 
+        if self.coc:
+            address = str(properties.Get('org.bluez.Adapter1', 'Address'))
+            self.coc.start(address)
+            print(f'Production Bluetooth channel ready on PSM {self.coc.psm}.', flush=True)
+
         def failed(error):
             self.failure = 'BlueZ registration failed: ' + str(error)
             self.loop.quit()
@@ -324,6 +350,8 @@ class Server(dbus.service.Object):
         try:
             self.loop.run()
         finally:
+            if self.coc:
+                self.coc.close()
             self.disconnect()
             self.echo.disconnect()
             for enabled, function, path in (

@@ -1,4 +1,5 @@
 #include "linuxrawwacom.h"
+#include "wacomidentity.h"
 
 #include <plank.h>
 #include <libudev.h>
@@ -36,26 +37,45 @@ std::uint16_t nextGeneration()
     return generation;
 }
 
-std::string usbParentPath(udev_device* device)
-{
-    udev_device* parent = udev_device_get_parent_with_subsystem_devtype(
-        device, "usb", "usb_device");
-    const char* path = parent != nullptr ? udev_device_get_syspath(parent) : nullptr;
-    return path != nullptr ? path : "";
-}
+struct WacomPhysicalDevice {
+    std::string path;
+    std::uint32_t product = 0;
+};
 
-bool isWacomUsbDevice(udev_device* device)
+WacomPhysicalDevice wacomPhysicalDevice(udev_device* device)
 {
+    if (device == nullptr) return {};
     udev_device* parent = udev_device_get_parent_with_subsystem_devtype(
         device, "usb", "usb_device");
     const char* vendor = parent != nullptr ?
         udev_device_get_sysattr_value(parent, "idVendor") : nullptr;
-    if (vendor == nullptr) {
-        return false;
+    const char* product = parent != nullptr ?
+        udev_device_get_sysattr_value(parent, "idProduct") : nullptr;
+    if (vendor != nullptr && product != nullptr) {
+        char* vendorEnd = nullptr;
+        char* productEnd = nullptr;
+        const unsigned long vendorId = std::strtoul(vendor, &vendorEnd, 16);
+        const unsigned long productId = std::strtoul(product, &productEnd, 16);
+        if (vendorEnd != vendor && *vendorEnd == '\0' &&
+                productEnd != product && *productEnd == '\0' &&
+                vendorId == kWacomVendorId && productId <= 0xffff) {
+            const char* path = udev_device_get_syspath(parent);
+            if (path != nullptr) return {std::string("usb:") + path,
+                                         static_cast<std::uint32_t>(productId)};
+        }
     }
-    char* end = nullptr;
-    const unsigned long value = std::strtoul(vendor, &end, 16);
-    return end != vendor && *end == '\0' && value == kWacomVendorId;
+
+    // BlueZ exposes a bonded tablet through UHID. Its hidraw and evdev nodes
+    // share the same HID ancestor, while neither has a USB parent.
+    parent = udev_device_get_parent_with_subsystem_devtype(device, "hid", nullptr);
+    const char* hidId = parent != nullptr ?
+        udev_device_get_property_value(parent, "HID_ID") : nullptr;
+    const char* path = parent != nullptr ? udev_device_get_syspath(parent) : nullptr;
+    PlankWacomHidIdentity identity{};
+    if (path != nullptr && plankParseWacomHidIdentity(hidId, &identity)) {
+        return {std::string("bluetooth:") + path, identity.product};
+    }
+    return {};
 }
 
 PlankWacomTransportDecision connectedWacomTransportDecision()
@@ -76,20 +96,9 @@ PlankWacomTransportDecision connectedWacomTransportDecision()
     udev_list_entry_foreach(entry, devices) {
         udev_device* device = udev_device_new_from_syspath(
             context, udev_list_entry_get_name(entry));
-        if (device != nullptr && isWacomUsbDevice(device)) {
-            udev_device* parent = udev_device_get_parent_with_subsystem_devtype(
-                device, "usb", "usb_device");
-            const char* product = parent != nullptr ?
-                udev_device_get_sysattr_value(parent, "idProduct") : nullptr;
-            char* end = nullptr;
-            const unsigned long value = product != nullptr ?
-                std::strtoul(product, &end, 16) : 0;
-            if (product != nullptr && end != product && *end == '\0' &&
-                    value <= 0xffff) {
-                candidates.push_back(std::make_pair(
-                    usbParentPath(device), static_cast<std::uint32_t>(value)));
-            }
-        }
+        const WacomPhysicalDevice physical = wacomPhysicalDevice(device);
+        if (!physical.path.empty())
+            candidates.emplace_back(physical.path, physical.product);
         if (device != nullptr) {
             udev_device_unref(device);
         }
@@ -102,6 +111,10 @@ PlankWacomTransportDecision connectedWacomTransportDecision()
     }
 
     std::sort(candidates.begin(), candidates.end());
+    if (candidates.front().first != candidates.back().first) {
+        // Leave input offline rather than selecting an arbitrary tablet.
+        return decision;
+    }
     decision.vendor = kWacomVendorId;
     decision.product = candidates.front().second;
     decision.transport = plankWacomTransportForUsbDevice(
@@ -327,9 +340,9 @@ bool LinuxRawWacomInput::discover()
         udev_device* device = udev_device_new_from_syspath(
             context, udev_list_entry_get_name(entry));
         const char* node = device != nullptr ? udev_device_get_devnode(device) : nullptr;
-        if (device != nullptr && node != nullptr && isWacomUsbDevice(device)) {
-            candidates.push_back(std::make_pair(usbParentPath(device), node));
-        }
+        const WacomPhysicalDevice physical = wacomPhysicalDevice(device);
+        if (node != nullptr && !physical.path.empty())
+            candidates.emplace_back(physical.path, node);
         if (device != nullptr) {
             udev_device_unref(device);
         }
@@ -347,7 +360,9 @@ bool LinuxRawWacomInput::discover()
         [&selectedParent](const std::pair<std::string, std::string>& candidate) {
             return candidate.first == selectedParent;
         }));
-    if (selectedCount == 0 || selectedCount > PLANK_RAW_HID_MAX_INTERFACES) {
+    if (selectedCount == 0 || selectedCount > PLANK_RAW_HID_MAX_INTERFACES ||
+            selectedCount != candidates.size()) {
+        // Never silently capture one of several local Wacom tablets.
         udev_unref(context);
         return false;
     }
@@ -365,6 +380,9 @@ bool LinuxRawWacomInput::discover()
         }
         hidraw_devinfo info = {};
         if (ioctl(fd, HIDIOCGRAWINFO, &info) < 0 ||
+                info.vendor != kWacomVendorId ||
+                (selectedParent.rfind("bluetooth:", 0) == 0 &&
+                 info.bustype != BUS_BLUETOOTH) ||
                 (m_Interfaces.empty() ? false :
                  info.bustype != expectedInfo.bustype ||
                  info.vendor != expectedInfo.vendor ||
@@ -407,7 +425,7 @@ bool LinuxRawWacomInput::discover()
             context, udev_list_entry_get_name(entry));
         const char* node = device != nullptr ? udev_device_get_devnode(device) : nullptr;
         if (device != nullptr && node != nullptr &&
-                usbParentPath(device) == selectedParent &&
+                wacomPhysicalDevice(device).path == selectedParent &&
                 std::strncmp(node, "/dev/input/event", 16) == 0) {
             const int fd = open(node, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
             if (fd >= 0) {

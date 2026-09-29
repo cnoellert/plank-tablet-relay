@@ -14,6 +14,10 @@ add_executable(session_test tests/session_test.c)
 target_link_libraries(session_test PRIVATE plank_relay_protocol)
 add_test(NAME session_test COMMAND session_test)
 
+add_executable(wacom_identity_test tests/wacom_identity_test.cpp)
+target_compile_features(wacom_identity_test PRIVATE cxx_std_17)
+add_test(NAME wacom_identity_test COMMAND wacom_identity_test)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_library(plank_relay_pad STATIC src/pad.c)
     target_include_directories(plank_relay_pad PUBLIC src)
@@ -30,11 +34,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(PLANK_CLIENT_VENDOR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/plank-client")
     file(SHA256 "${PLANK_CLIENT_VENDOR}/linuxrawwacom.cpp" WORKER_CPP_SHA256)
     file(SHA256 "${PLANK_CLIENT_VENDOR}/linuxrawwacom.h" WORKER_H_SHA256)
+    file(SHA256 "${PLANK_CLIENT_VENDOR}/wacomidentity.h" WORKER_IDENTITY_SHA256)
     file(SHA256 "${PLANK_CLIENT_VENDOR}/plank.h" PLANK_H_SHA256)
     if(NOT WORKER_CPP_SHA256 STREQUAL
-            "fcb22a140232dc5eabd1f1a9de8db059992b4813334747da584429690979bcdc" OR
+            "654e2301f29779854d746185a5fb67230dd5d70942628a2c2b7f98193475804b" OR
        NOT WORKER_H_SHA256 STREQUAL
             "7f6c9880c2a91f80b1100246c8692e47b39a0973f460e10909ed8d20ccf916e4" OR
+       NOT WORKER_IDENTITY_SHA256 STREQUAL
+            "e339de432d646892ad1787741bfc3a61715dd5df239affe1ff90fec2bb3e93c4" OR
        NOT PLANK_H_SHA256 STREQUAL
             "b6a197da614ec5becc812b73d1d8e0ac5861cea22805f8443690b71ee16c8392")
         message(FATAL_ERROR "Vendored PLANK Client worker differs from its pinned snapshot")

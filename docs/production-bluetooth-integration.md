@@ -14,6 +14,12 @@ physical USB parent. Multiple physical candidates leave raw capture offline
 instead of selecting one arbitrarily. The worker snapshot comes from
 `cnoellert/plank-client` commit `4b0b569b847a708d0b55535c715f8e16ef906b65`.
 
+The production session runner now accepts the already-established ordered
+stream plus its Noise link type. The TCP entry point still selects type 2;
+an LE entry point can select type 1 and run the same approved-key lookup,
+`SESSION_READY` gate and raw-HID worker. A socketpair test exercises both
+types. This does not create or advertise a Bluetooth listener.
+
 This change enables a Bluetooth tablet to feed the **existing TCP Relay**
 after Linux hardware qualification. It does not yet carry the production
 stream from the Relay to Vision Pro over Bluetooth. That second hop needs:
@@ -21,11 +27,9 @@ stream from the Relay to Vision Pro over Bluetooth. That second hop needs:
 1. A production byte-stream transport with bounded buffering and backpressure.
    Evaluate LE Credit Based L2CAP for raw-HID volume; the diagnostic GATT
    indication queue is not a throughput qualification for production input.
-2. The existing CPace/Noise pairing, approved-key lookup and `PltrLink`
-   protocol on that transport, with peer binding and per-session shutdown.
-3. The same `PltrSessionDispatcher` and worker ownership rules as TCP, so
-   disconnect releases held input and a new session cannot inherit old state.
-4. A Vision Pro connection path that selects TCP or Bluetooth while preserving
+2. The existing CPace pairing and saved relay identity on that transport.
+   Bind the accepted stream to its current peer and close it with the session.
+3. A Vision Pro connection path that selects TCP or Bluetooth while preserving
    the existing preflight, focus and reconnection behavior.
 
 Offline validation covers the HID identity parser and existing protocol tests.

@@ -192,7 +192,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_link_libraries(session_dispatcher_test PRIVATE plank_relay_session_dispatcher)
         add_test(NAME session_dispatcher_test COMMAND session_dispatcher_test)
 
-        add_library(plank_relay_tcp_session STATIC src/tcp_session.cpp)
+        add_library(plank_relay_tcp_session STATIC
+            src/stream_session.cpp src/tcp_session.cpp)
         target_include_directories(plank_relay_tcp_session PUBLIC src)
         target_compile_features(plank_relay_tcp_session PUBLIC cxx_std_17)
         target_link_libraries(plank_relay_tcp_session PUBLIC

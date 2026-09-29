@@ -15,6 +15,8 @@ class ProductionCoC:
         self.psm = 0
         self.active = False
         self.stopping = False
+        self.failure = None
+        self.gate = threading.Lock()
         self.stop_read, self.stop_write = os.pipe()
         os.set_blocking(self.stop_write, False)
 
@@ -50,19 +52,25 @@ class ProductionCoC:
             except OSError:
                 if self.stopping:
                     break
-                raise
+                self.failure = 'Production Bluetooth listener stopped unexpectedly.'
+                break
             with channel:
-                if self.stopping or not self.can_accept():
-                    continue
-                self.channel = channel
-                self.active = True
+                with self.gate:
+                    if self.stopping or not self.can_accept():
+                        continue
+                    self.channel = channel
+                    self.active = True
                 try:
                     # The C++ runner validates the saved Client key with the
                     # BLE-specific Noise prologue before starting raw HID.
                     self.native.run_coc_session(channel.fileno(), self.stop_read)
+                except Exception as error:
+                    self.failure = 'Production Bluetooth session failed: ' + str(error)
+                    break
                 finally:
-                    self.active = False
-                    self.channel = None
+                    with self.gate:
+                        self.active = False
+                        self.channel = None
 
     def close(self):
         self.stopping = True

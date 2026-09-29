@@ -61,7 +61,7 @@ jobs:
           chmod 755 /usr/sbin/policy-rc.d
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build pkg-config libudev-dev \
+            build-essential cmake ninja-build pkg-config libbluetooth-dev libudev-dev \
             python3 python3-dbus python3-gi debhelper dh-python \
             curl ca-certificates git lintian bluez systemd
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

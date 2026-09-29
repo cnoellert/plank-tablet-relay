@@ -189,8 +189,16 @@ class Server(dbus.service.Object):
         self.tx.PropertiesChanged(GATT, {'Value': dbus.Array(data, signature='y')}, [])
 
     def receive(self, data, options):
-        if not self.native or self.echo.peer or (self.coc and self.coc.active):
-            raise Rejected('Bluetooth data channel is active; pairing is unavailable.')
+        if self.coc:
+            with self.coc.gate:
+                if self.coc.active:
+                    raise Rejected('Bluetooth data channel is active; pairing is unavailable.')
+                return self._receive_pairing(data, options)
+        return self._receive_pairing(data, options)
+
+    def _receive_pairing(self, data, options):
+        if not self.native or self.echo.peer:
+            raise Rejected('Bluetooth transport test is active; pairing is unavailable.')
         try:
             peer = write_peer(data, options, self.adapter, self.notifying, self.peer)
         except ValueError as error:
@@ -265,6 +273,10 @@ class Server(dbus.service.Object):
             self.loop.quit()
 
     def tick(self):
+        if self.coc and self.coc.failure:
+            self.failure = self.coc.failure
+            self.loop.quit()
+            return False
         try:
             self.echo.tick()
         except (ProtocolError, BufferError, TimeoutError) as error:

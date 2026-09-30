@@ -1,3 +1,10 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.13) experimental; urgency=medium
+
+  * Add optional, payload-free queue timing diagnostics for physical Bluetooth
+    latency qualification. Enable with PLANK_RELAY_QUEUE_DIAGNOSTICS=1.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:20:00 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.12) experimental; urgency=medium
 
   * Permit the exact Wacom capture worker to open hidraw for read/write under

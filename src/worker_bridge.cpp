@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <limits>
 #include <utility>
@@ -27,7 +28,8 @@ static std::uint64_t monotonic_us() {
 PltrWorkerBridge::PltrWorkerBridge(
     std::function<void()> wake,
     LinuxRawWacomInput::GenerationProvider generation_provider)
-    : wake_(std::move(wake)) {
+    : queue_diagnostics_(std::getenv("PLANK_RELAY_QUEUE_DIAGNOSTICS") != nullptr),
+      wake_(std::move(wake)) {
     worker_ = std::make_unique<LinuxRawWacomInput>(
         [this](const unsigned char *bytes, std::size_t size) {
             return enqueue(bytes, size);
@@ -144,11 +146,40 @@ bool PltrWorkerBridge::enqueue(const std::uint8_t *bytes, std::size_t size) {
 }
 
 bool PltrWorkerBridge::pop(PltrQueuedTabletFrame &frame) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (queue_.empty()) return false;
-    frame = std::move(queue_.front());
-    queue_.pop_front();
-    queued_bytes_ -= frame.plwh.size() + 8;
+    bool report = false;
+    std::uint64_t oldest_age_us = 0;
+    std::size_t max_depth = 0, report_count = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (queue_.empty()) return false;
+        const auto depth = queue_.size();
+        frame = std::move(queue_.front());
+        queue_.pop_front();
+        queued_bytes_ -= frame.plwh.size() + 8;
+        if (queue_diagnostics_) {
+            const auto now = monotonic_us();
+            if (frame.capture_time_us != 0 && now >= frame.capture_time_us)
+                max_queue_age_us_ = std::max(max_queue_age_us_,
+                                             now - frame.capture_time_us);
+            max_queue_depth_ = std::max(max_queue_depth_, depth);
+            ++dequeued_since_diagnostic_;
+            if (last_queue_diagnostic_us_ == 0) last_queue_diagnostic_us_ = now;
+            if (now - last_queue_diagnostic_us_ >= 1000000) {
+                oldest_age_us = max_queue_age_us_;
+                max_depth = max_queue_depth_;
+                report_count = dequeued_since_diagnostic_;
+                max_queue_age_us_ = 0;
+                max_queue_depth_ = 0;
+                dequeued_since_diagnostic_ = 0;
+                last_queue_diagnostic_us_ = now;
+                report = true;
+            }
+        }
+    }
+    if (report) std::fprintf(stderr,
+                             "Wacom relay queue: oldest %llu ms, max depth %zu, sent %zu/s\n",
+                             static_cast<unsigned long long>(oldest_age_us / 1000),
+                             max_depth, report_count);
     return true;
 }
 

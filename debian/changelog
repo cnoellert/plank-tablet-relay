@@ -1,3 +1,12 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.10) experimental; urgency=medium
+
+  * Accept LE channels advertising MTUs larger than the bounded send buffer
+    by sending smaller packets within the negotiated limit.
+  * Log data-channel acceptance and negotiated MTU without logging identities
+    or payloads, to diagnose live Noise handshake failures.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 03:45:00 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.9) experimental; urgency=medium
 
   * Bind the production data channel as Bluetooth LE on Linux, bypassing

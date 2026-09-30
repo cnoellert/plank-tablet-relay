@@ -82,7 +82,10 @@ int pltr_bridge_coc_stream(int coc_fd, int stream_fd, int stop_fd,
                            std::size_t outgoing_mtu) {
     if (coc_fd < 0 || stream_fd < 0 || coc_fd == stream_fd ||
         (stop_fd >= 0 && (stop_fd == coc_fd || stop_fd == stream_fd)) ||
-        outgoing_mtu < 23 || outgoing_mtu > kMaxOutgoingMtu) return -1;
+        outgoing_mtu < 23 || outgoing_mtu > kMaxSdu) return -1;
+    // The peer may advertise an MTU larger than our bounded scratch buffer.
+    // Sending smaller SDUs is valid; rejecting the connection is not.
+    outgoing_mtu = std::min(outgoing_mtu, kMaxOutgoingMtu);
     // Each direction blocks on the kernel socket instead of queuing packets in
     // user space. Closing either half wakes the other direction on teardown.
     std::thread inbound([&] {

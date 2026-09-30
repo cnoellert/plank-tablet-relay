@@ -83,13 +83,19 @@ class ProductionCoC:
             with channel:
                 with self.gate:
                     if self.stopping or not self.can_accept():
+                        print('Bluetooth data channel declined while pairing or stopping.', flush=True)
                         continue
                     self.channel = channel
                     self.active = True
                 try:
                     # The C++ runner validates the saved Client key with the
                     # BLE-specific Noise prologue before starting raw HID.
-                    self.native.run_coc_session(channel.fileno(), self.stop_read)
+                    print('Bluetooth data channel accepted; verifying saved headset identity.', flush=True)
+                    result = self.native.run_coc_session(channel.fileno(), self.stop_read)
+                    if result == 0:
+                        print('Bluetooth data session ended normally.', flush=True)
+                    else:
+                        print('Bluetooth data session closed before normal completion.', flush=True)
                 except Exception as error:
                     self.failure = 'Production Bluetooth session failed: ' + str(error)
                     break

@@ -1,5 +1,6 @@
 #include "coc_stream.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -18,13 +19,13 @@ ssize_t readable(int fd, std::uint8_t *bytes, std::size_t capacity) {
 }
 }
 
-int main() {
+void run_case(std::size_t outgoing_mtu) {
     int packets[2], stream[2], stop[2];
     assert(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, packets) == 0);
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, stream) == 0);
     assert(pipe(stop) == 0);
     std::thread bridge([&] {
-        assert(pltr_bridge_coc_stream(packets[0], stream[0], stop[0], 37) == 0);
+        assert(pltr_bridge_coc_stream(packets[0], stream[0], stop[0], outgoing_mtu) == 0);
     });
     std::array<std::uint8_t, 120> outbound{};
     for (std::size_t i = 0; i < outbound.size(); ++i)
@@ -35,7 +36,8 @@ int main() {
     while (reassembled.size() < outbound.size()) {
         std::array<std::uint8_t, 128> packet{};
         const ssize_t count = readable(packets[1], packet.data(), packet.size());
-        assert(count > 0 && count <= 37);
+        assert(count > 0 && static_cast<std::size_t>(count) <=
+               std::min(outgoing_mtu, std::size_t{4096}));
         reassembled.insert(reassembled.end(), packet.begin(), packet.begin() + count);
     }
     assert(std::memcmp(reassembled.data(), outbound.data(), outbound.size()) == 0);
@@ -58,4 +60,9 @@ int main() {
     bridge.join();
     for (int fd : {packets[0], packets[1], stream[0], stream[1], stop[0], stop[1]})
         close(fd);
+}
+
+int main() {
+    run_case(37);
+    run_case(65535);
 }

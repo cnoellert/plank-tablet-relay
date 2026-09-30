@@ -1,3 +1,11 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.9) experimental; urgency=medium
+
+  * Bind the production data channel as Bluetooth LE on Linux, bypassing
+    Python's BR/EDR-only L2CAP address wrapper.
+  * Accept Linux-assigned even dynamic LE PSM values such as 0x80.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 02:22:22 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.8) experimental; urgency=medium
 
   * Target Ubuntu 26.04 for native arm64 and amd64 builds and installation.

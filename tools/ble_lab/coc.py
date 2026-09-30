@@ -1,8 +1,37 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Production LE Credit Based L2CAP listener using the lab's saved identity."""
+import ctypes
 import os
 import socket
 import threading
+
+
+class _SockaddrL2(ctypes.Structure):
+    # Linux bluetooth/l2cap.h. Python's socket.bind() exposes only the
+    # BR/EDR two-field address, so it cannot select an LE address type.
+    _fields_ = [('family', ctypes.c_ushort), ('psm', ctypes.c_ushort),
+                ('address', ctypes.c_ubyte * 6), ('cid', ctypes.c_ushort),
+                ('address_type', ctypes.c_ubyte)]
+
+
+def _bind_le_public(listener, adapter_address):
+    octets = adapter_address.split(':')
+    if len(octets) != 6 or any(len(octet) != 2 for octet in octets):
+        raise ValueError('Invalid Bluetooth adapter address.')
+    address = bytes(int(octet, 16) for octet in octets)
+    target = _SockaddrL2()
+    target.family = socket.AF_BLUETOOTH
+    target.psm = 0  # Linux allocates an LE dynamic PSM.
+    target.address[:] = address[::-1]
+    target.address_type = 1  # BDADDR_LE_PUBLIC in bluetooth/bluetooth.h.
+    if ctypes.sizeof(target) != 14:
+        raise RuntimeError('Unexpected Linux L2CAP socket address layout.')
+    bind = ctypes.CDLL(None, use_errno=True).bind
+    bind.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.c_uint)
+    bind.restype = ctypes.c_int
+    if bind(listener.fileno(), ctypes.byref(target), ctypes.sizeof(target)) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
 
 
 class ProductionCoC:
@@ -26,12 +55,9 @@ class ProductionCoC:
         listener = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET,
                                  socket.BTPROTO_L2CAP)
         try:
-            # PSM zero asks Linux to allocate an unused dynamic LE PSM.
-            # The last tuple field selects LE Public rather than BR/EDR.
-            listener.bind((str(adapter_address), 0, 0,
-                           getattr(socket, 'BDADDR_LE_PUBLIC', 1)))
+            _bind_le_public(listener, str(adapter_address))
             self.psm = listener.getsockname()[1]
-            if not 0x80 <= self.psm <= 0xff or not self.psm & 1:
+            if not 0x80 <= self.psm <= 0xff:
                 raise RuntimeError('Linux did not allocate a valid LE PSM.')
             listener.listen(1)
             listener.settimeout(0.5)

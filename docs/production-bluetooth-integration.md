@@ -1,11 +1,10 @@
 # Production Bluetooth integration status
 
-This branch starts from Alan's `visionos-tablet-setup` work. That branch's
-`plank-tablet-relay-ble` service and Tablet Setup app authenticate a headset
-and send bounded diagnostic readings. The production PLTR/raw-HID stream still
-runs through `plank-tablet-relay` over TCP. Do not replace `PLTR_CLIENT_FRAME`
-with the 80-byte `PLTR_INPUT_SAMPLE` diagnostic payload: the latter cannot
-reproduce the workstation's Wacom device, pressure and control path.
+This branch starts from Alan's `visionos-tablet-setup` work. The
+`plank-tablet-relay-ble` service now carries the production PLTR/raw-HID stream
+over authenticated LE Credit Based L2CAP. The TCP Relay remains available.
+`PLTR_INPUT_SAMPLE` is only a diagnostic reading and cannot reproduce the
+workstation's Wacom device, pressure and control path.
 
 The production raw-HID worker now discovers a bonded Bluetooth Wacom by its
 Linux HID ancestor (`HID_ID` bus 5, Wacom vendor), and matches its hidraw and
@@ -22,26 +21,32 @@ into that ordered stream and splits outgoing records at the negotiated MTU.
 The BlueZ service publishes a read-only PSM characteristic and accepts one
 production channel while pairing is idle. It shares the exact identity store
 held by the pairing service; a second daemon cannot safely open it. These
-paths have unit and Linux package tests, but no physical CoC link test yet.
-The NanoPi Zero2 has bound and advertised the production LE listener on PSM
-`0x80` after a reboot; a headset connection and raw-HID transfer remain untested.
-The Ubuntu 26.04 NUC also advertised the listener on PSM `0x80` using the AX900
-as a second radio; its physical headset channel remains untested.
+paths have unit and Linux package tests. A physical Vision Pro has established
+the LE CoC link with the AX900 on an Ubuntu 26.04 NUC, passed saved-key Noise
+identity verification, and forwarded USB Wacom movement, tip clicks and
+pressure to a Linux Host. The NanoPi Zero2 bound and advertised the production
+LE listener before its 5 V power input was damaged by a 12 V adapter; no
+physical headset stream was qualified on that board.
 
-This change enables a Bluetooth tablet to feed the **existing TCP Relay**
-after Linux hardware qualification. It also implements the Relay end of a
-production Bluetooth channel. A separate draft Vision Pro Client branch now
-implements CoreBluetooth discovery, physical-button pairing, PSM reading,
-`openL2CAPChannel`, and the BLE-specific Noise prologue. The installed app
-still uses TCP for live sessions. Completing the second hop needs:
+The signed Vision Pro development Client implements CoreBluetooth discovery,
+physical-button pairing, PSM reading, `openL2CAPChannel`, and the BLE-specific
+Noise prologue. The Client and Relay negotiate report batching through a
+reserved bit in `SESSION_READY`; older Clients continue to receive individual
+`PLTR_CLIENT_FRAME` records. The batch contains only ordered raw-HID input
+reports. Attach, detach, suspend and Host control retain their individual
+messages. The AVP validates the entire batch before delivering any report.
 
-1. Physical LE CoC qualification on the NUC or NanoPi: PSM allocation,
-   sustained raw-HID throughput, reconnects, and simultaneous Wacom Bluetooth.
-2. A signed Client/Relay installation after that qualification. Alan's
-   separate Tablet Setup app uses a different Keychain namespace; its pairing
-   does not authorize the PLANK app.
+Remaining hardware qualification includes:
 
-Offline validation covers the HID identity parser and existing protocol tests.
-The full Linux worker build and physical checks remain required: tablet sleep
-and wake, pad and pen grouping, tip/pressure, exclusive event grab, USB/BT
-switching, simultaneous nearby tablets, and reconnect with a held stroke.
+1. Longer sessions and repeated headset sleep/reconnect while the Wacom is
+   connected over Bluetooth to the NUC.
+2. Resolving LE delivery bursts and intermittent Relay backpressure before
+   treating Bluetooth drawing as equivalent to the network Relay. A physical
+   continuous-stroke run briefly queued 73 reports (oldest 355 ms); bounded
+   AVP replay reduced delay, but long curves still appeared faceted.
+3. Ensuring all tip, button and pressure transitions survive extended use.
+
+The Ubuntu package build runs 25 Relay tests, libsodium tests and an extracted
+package smoke check. The physical NUC test supplements these checks but does
+not replace tablet sleep/wake, USB/BT switching, simultaneous nearby tablets
+or extended held-stroke/reconnect trials.

@@ -35,7 +35,8 @@ arm64** (including the NanoPi Zero2's official Ubuntu image) and **Ubuntu
 26.04 arm64/amd64**. Builds and clean-install tests run in containers on native
 ARM64 and x86-64 runners. Bluetooth operation still requires
 qualification on the board's kernel, radio and firmware. The existing physical
-qualification is Ubuntu 26.04 amd64 with Intel 7265. There is no 32-bit `armhf`
+qualification includes Ubuntu 26.04 amd64 with Intel 7265 and a dev NUC with
+the AX900. There is no 32-bit `armhf`
 build. Ubuntu 24.04 package CI does not yet qualify the NanoPi's actual
 Bluetooth controller. The `.deb` format does not imply Debian or other Ubuntu compatibility;
 OpenWrt/FriendlyWrt cannot install this package.
@@ -88,17 +89,28 @@ calling the NanoPi Bluetooth path ready.
 
 The same AX900 on an Ubuntu 26.04 amd64 NUC with kernel 7.0.0-34 loaded
 `rtl8851bu_fw.bin`, discovered both an MX Anywhere 3S and the flashing
-`BT IntuosPro M`, and exposed its own controller as `hci1`. This distinguishes
-the NanoPi's failed scans from a blanket radio incompatibility, but does not
-qualify the AX900's sustained tablet or headset connections. The NanoPi test
+`BT IntuosPro M`, and exposed its own controller as `hci1`. On this NUC, a
+physical Vision Pro established a saved-key Noise LE CoC session, attached a
+USB Wacom to the Host, and delivered pen movement, tip clicks and pressure.
+The first sustained input runs exposed BLE queueing despite immediate worker
+capture. Package `.14` grouped encrypted records into LE SDUs; package `.15`
+adds a negotiated, lossless batch of adjacent input reports. At about 200
+reports/s, the `.15` Relay worker queue usually held reports for about 4 ms,
+and controller TX latency averaged about 54 ms during one physical run. A later
+continuous-stroke run briefly built a 73-report queue with an oldest report
+age of 355 ms before recovering. The AVP's bounded replay reduced pen delay
+but long curves remained faceted. Bluetooth drawing remains slower and less
+even than the network Relay; it is not a long-session or sleep/reconnect
+qualification. The
+NanoPi test
 ended after a fixed-output 12 V adapter was mistakenly connected to its 5 V
 power input; the board then showed no LEDs, Ethernet link, or USB recovery
 enumeration. Do not interpret that hardware failure as a Relay software result.
 
-On the NUC, the `.9` package passed its configuration check and advertised a
-production listener on dynamic PSM `0x80` using `hci1`, while `hci0` retained
-the Wacom's existing Bluetooth bond. A physical headset L2CAP connection and
-raw-HID stream still need qualification.
+On the NUC, the Relay advertises its production listener on dynamic PSM
+`0x80` using `hci1`. The current physical pen test used USB tablet capture;
+Wacom-to-NUC Bluetooth and extended concurrent operation still need separate
+qualification with the production service.
 
 ## Qualified Intel 7265 compatibility settings
 
@@ -177,7 +189,7 @@ directory. CI does not exercise a physical Bluetooth controller or systemd
 reboot/recovery; those checks remain part of hardware qualification.
 
 The service runs as root for BlueZ administration, raw controller setup and
-read-only input access, with only `CAP_NET_ADMIN` and `CAP_NET_RAW`, restricted
+bounded hidraw read/write access, with only `CAP_NET_ADMIN` and `CAP_NET_RAW`, restricted
 device/address-family access and filesystem protections. It opens no TCP port.
 Tablet data uses the existing CPace/Noise implementation. The three-press
 initial approval scheme retains its documented nearby-attacker enrollment

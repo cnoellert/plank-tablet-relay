@@ -1,5 +1,6 @@
 #pragma once
 
+#include "capture_lease.hpp"
 #include "link.h"
 #include "worker_bridge.hpp"
 
@@ -7,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 
 // Applies already authenticated and validated Client frames to the Linux
 // tablet worker. Owns one worker only between SESSION_READY and SESSION_END.
@@ -14,7 +16,8 @@ class PltrSessionDispatcher {
 public:
     explicit PltrSessionDispatcher(
         std::function<void()> wake,
-        LinuxRawWacomInput::GenerationProvider generation_provider = {});
+        LinuxRawWacomInput::GenerationProvider generation_provider = {},
+        std::string capture_lease_name = PltrCaptureLease::ProductionName);
     ~PltrSessionDispatcher();
     PltrSessionDispatcher(const PltrSessionDispatcher&) = delete;
     PltrSessionDispatcher& operator=(const PltrSessionDispatcher&) = delete;
@@ -31,6 +34,7 @@ public:
 private:
     std::function<void()> wake_;
     LinuxRawWacomInput::GenerationProvider generation_provider_;
+    PltrCaptureLease capture_lease_;
     std::unique_ptr<PltrWorkerBridge> worker_;
     bool ended_ = false;
 };

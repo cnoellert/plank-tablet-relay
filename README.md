@@ -1,6 +1,6 @@
 # PLANK tablet Relay
 
-This is the separate Linux Relay for a USB Wacom tablet used with the native
+This is the separate Linux Relay for a Wacom tablet used with the native
 PLANK Vision Pro Client. The Relay will read the tablet locally and forward its
 existing raw-HID frames to a paired Client. The Client owns the authenticated
 Host session; the Relay has no Host credentials.
@@ -28,6 +28,8 @@ were checked on the development NUC in order against codes 256 through 263.
 Bluetooth LE and production packaging remain to be implemented.
 The NUC's Wacom Pad evdev node is readable by the `plank-relay` service user;
 the ExpressKey mapping and 5/15-second hold detector are compiled and tested.
+Only the five-second pairing action is wired into the running service; the
+15-second forget-all action is still unimplemented.
 The existing raw-Wacom worker now has a bounded, validated output queue for
 the network thread. Worker overflow marks the link failed instead of dropping
 individual tablet reports. An authenticated session dispatcher routes Client
@@ -54,7 +56,7 @@ became active. The Client also resumed pen clicks and pressure after the Relay
 service restarted during a session. After a full NUC reboot, the service
 started automatically and a fresh Vision Pro session again carried pen clicks
 and varying pressure. After the headset was removed for one minute, pen
-movement and pressure returned immediately on wake. DNS-SD, Bluetooth LE, and
+movement and pressure returned immediately on wake. Bluetooth LE and
 production packaging remain. During an active session, unplugging the tablet's
 USB cable and reconnecting it also recovered without restarting PLANK: movement
 returned first, followed a few seconds later by tip clicks and varying
@@ -68,6 +70,25 @@ Relay software version 0.1.1 reports `STATUS=attached` only after Linux has
 successfully claimed every local Wacom event node. If claiming fails, it
 suspends the Host tablet and reports attach rejection. The Vision Pro Client
 uses this stronger signal in its six-gate Wacom preflight.
+The running service now watches the idle Wacom Pad. Holding its first and last
+ExpressKeys together for five seconds opens the same bounded pairing window as
+the `pair` command, without stopping the service or using a terminal. Avahi
+advertises `_plank-tablet._tcp` with the protocol version, public-key
+fingerprint prefix, and live pairing-window state. The dev NUC advertises the
+service on its local 192.168.86 network; the signed Vision Pro Client can browse
+for it and connect through the Bonjour service endpoint. The physical-chord
+and Vision Pro discovery flow still need a live acceptance check. Manual
+address entry remains available when multicast does not cross networks.
+The TCP Relay can now recognize a bonded Bluetooth Wacom under Linux UHID as
+well as a USB Wacom. It pins the Client's Bluetooth-aware raw-HID worker and
+checks that every local Wacom event node is accessible before Host attachment.
+For the tested PTH-660, the idle pairing chord accepts USB `056a:0357` or
+Bluetooth `056a:0360`; multiple eligible Pads are rejected. A development NUC
+and physical Vision Pro passed live Bluetooth tablet movement, clicks, and
+pressure over the authenticated TCP link. Long curves were still slightly less
+smooth than USB. See [Bluetooth TCP setup and test](docs/bluetooth-tablet-tcp.md)
+for the scoped permissions and live result, and [setup app boundary](docs/setup-app-boundary.md)
+for the proposed separation between headless setup and PLANK's connection UI.
 
 Development service entry points (use the Relay service account that owns the
 0700 state directory, and confirm the Pad key order before physical pairing):
@@ -78,8 +99,27 @@ plank-tablet-relay serve --state-dir /var/lib/plank-tablet-relay
 ```
 
 Both default to `127.0.0.1:28990`. `--bind IPv4` explicitly selects a LAN
-address for a local-network trial. Pairing and serving are separate commands
-for this development build; a live session is not replaced by a second Client.
+address for a local-network trial. The `pair` command remains available for
+recovery. In normal service mode, hold ExpressKeys 1 and 8 for five seconds
+while no tablet session is active, then select the nearby Relay in Vision Pro
+Settings and press the five displayed ExpressKeys. A pairing window lasts
+120 seconds and admits one attempt. A live tablet session is not interrupted
+by a pairing chord or replaced by a second Client.
+
+The raw worker and the separate managed Setup service coordinate tablet access
+through one Linux abstract `AF_UNIX` datagram socket. Its address bytes are a
+leading NUL followed by `plank-tablet-capture-v1`, with no trailing NUL. Each
+service binds a nonblocking, close-on-exec socket before starting exclusive
+tablet work and holds its descriptor until that work stops. A second bind fails
+immediately; closing the descriptor or ending the process frees the address.
+The Relay obtains this lease after authenticated `SESSION_READY`, before
+constructing the Wacom worker, and releases it after the worker joins. When
+Setup owns capture, the Relay logs the specific conflict and closes the new
+session; the current wire format has no distinct busy message for the Client.
+Explicit pairing and the five-second physical pairing window use the same
+lease. The idle Pad reader remains read-only and nonexclusive; a pairing chord
+cannot open a window while Setup owns capture. Both services must include this
+guard before they run together on a NUC.
 
 `packaging/plank-tablet-relay.service` is a systemd unit for an unprivileged
 `plank-relay` user. It expects the binary at
@@ -88,7 +128,9 @@ for this development build; a live session is not replaced by a second Client.
 `/etc/default/plank-tablet-relay` to the Relay's LAN IPv4 address; its safe
 default is loopback. The tablet's `hidraw` and event nodes must be readable by
 the service account, and the firewall must permit TCP 28990 only from the
-intended local network. Pairing is run separately with the service stopped.
+intended local network. For automatic discovery, install and run Avahi on the
+Relay and keep the headset on the same multicast-enabled local network. The
+service remains usable by manual address when Avahi or multicast is unavailable.
 
 Build and test:
 

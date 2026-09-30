@@ -13,6 +13,7 @@
 #include <sys/eventfd.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <utility>
 
 namespace {
 using Clock = std::chrono::steady_clock;
@@ -54,7 +55,8 @@ bool send_worker_status(PltrLink &link, int fd, const PltrWorkerStatus &current)
 }
 } // namespace
 
-int pltr_run_tcp_session(int socket_fd, PltrIdentityStore &store, int stop_fd) {
+int pltr_run_tcp_session(int socket_fd, PltrIdentityStore &store, int stop_fd,
+                         std::string capture_lease_name) {
     if (socket_fd < 0 || store.directory_fd < 0 ||
         (stop_fd >= 0 && stop_fd == socket_fd)) return -1;
     PltrLink link{};
@@ -76,7 +78,7 @@ int pltr_run_tcp_session(int socket_fd, PltrIdentityStore &store, int stop_fd) {
             std::uint16_t generation = 0;
             return pltr_identity_store_next_generation(&store, &generation) == 0 ?
                 generation : std::uint16_t{0};
-        });
+        }, std::move(capture_lease_name));
         auto last_receive = Clock::now();
         auto last_ping = last_receive;
         bool hello_seen = false;

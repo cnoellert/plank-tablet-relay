@@ -32,7 +32,7 @@ RestrictAddressFamilies=AF_UNIX AF_BLUETOOTH
 LockPersonality=yes
 DevicePolicy=closed
 DeviceAllow=char-input r
-DeviceAllow=char-hidraw r
+DeviceAllow=char-hidraw rw
 
 [Install]
 WantedBy=multi-user.target

@@ -1,3 +1,11 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.12) experimental; urgency=medium
+
+  * Permit the exact Wacom capture worker to open hidraw for read/write under
+    the service device policy. Without this, Bluetooth identity verification
+    succeeds but the tablet never attaches.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:18:00 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.11) experimental; urgency=medium
 
   * Query the LE Credit Based channel's send MTU using BT_SNDMTU. Linux

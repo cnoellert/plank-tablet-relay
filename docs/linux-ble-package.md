@@ -67,6 +67,39 @@ The service retries missing adapters/startup failures and re-registers after
 BlueZ restarts. `active (running)` means GATT registration and advertising have
 completed; it does not claim a tablet or headset is currently connected.
 
+## NanoPi Zero2 first hardware check
+
+On a NanoPi Zero2 with FriendlyELEC's Ubuntu 24.04 arm64 image and kernel
+6.1.141, package `0.2.0~visionos-tablet-setup.9` installed cleanly. Its
+configuration check passed, the production LE listener received dynamic PSM
+`0x80`, and the managed service advertised after installation and a full board
+reboot. The first package exposed a physical-only Python socket limitation:
+Python's two-field L2CAP `bind` wrapper selected BR/EDR and rejected the LE
+address tuple. The package now uses Linux's full `sockaddr_l2` for LE binding.
+
+This check does **not** qualify a Client session or tablet input. The USB radio
+connected for the first scan reported ID `3625:010b`, the TP-Link Archer TX10UB
+Nano ([TP-Link specifications](https://www.tp-link.com/mx/home-networking/adapter/archer-tx10ub-nano/),
+Wi-Fi 6 / Bluetooth 5.3). BlueZ exposed a powered controller, but BR/EDR and
+LE scans did not discover the nearby Wacom while it was flashing in pairing
+mode. Neither a tablet bond nor an AVP channel was established. Investigate
+this adapter's Linux firmware/driver or qualify a different radio before
+calling the NanoPi Bluetooth path ready.
+
+The same AX900 on an Ubuntu 26.04 amd64 NUC with kernel 7.0.0-34 loaded
+`rtl8851bu_fw.bin`, discovered both an MX Anywhere 3S and the flashing
+`BT IntuosPro M`, and exposed its own controller as `hci1`. This distinguishes
+the NanoPi's failed scans from a blanket radio incompatibility, but does not
+qualify the AX900's sustained tablet or headset connections. The NanoPi test
+ended after a fixed-output 12 V adapter was mistakenly connected to its 5 V
+power input; the board then showed no LEDs, Ethernet link, or USB recovery
+enumeration. Do not interpret that hardware failure as a Relay software result.
+
+On the NUC, the `.9` package passed its configuration check and advertised a
+production listener on dynamic PSM `0x80` using `hci1`, while `hci0` retained
+the Wacom's existing Bluetooth bond. A physical headset L2CAP connection and
+raw-HID stream still need qualification.
+
 ## Qualified Intel 7265 compatibility settings
 
 The tested Intel 7265 / BlueZ 5.85 / visionOS 27 combination needed both:

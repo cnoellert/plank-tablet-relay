@@ -23,6 +23,10 @@ The BlueZ service publishes a read-only PSM characteristic and accepts one
 production channel while pairing is idle. It shares the exact identity store
 held by the pairing service; a second daemon cannot safely open it. These
 paths have unit and Linux package tests, but no physical CoC link test yet.
+The NanoPi Zero2 has bound and advertised the production LE listener on PSM
+`0x80` after a reboot; a headset connection and raw-HID transfer remain untested.
+The Ubuntu 26.04 NUC also advertised the listener on PSM `0x80` using the AX900
+as a second radio; its physical headset channel remains untested.
 
 This change enables a Bluetooth tablet to feed the **existing TCP Relay**
 after Linux hardware qualification. It also implements the Relay end of a

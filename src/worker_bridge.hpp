@@ -41,6 +41,8 @@ public:
     void finishReconnect();
     void handleControl(const std::uint8_t *bytes, std::size_t size);
     bool pop(PltrQueuedTabletFrame &frame);
+    bool popAdjacentInput(PltrQueuedTabletFrame &frame);
+    bool hasQueuedInput() const;
     bool failed() const;
     PltrWorkerStatus status() const;
 

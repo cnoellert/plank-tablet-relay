@@ -27,10 +27,13 @@ public:
     void close();
     bool failed() const;
     PltrWorkerStatus status() const;
+    bool batchEnabled() const { return batch_enabled_; }
+    bool pendingInput() const { return worker_ && worker_->hasQueuedInput(); }
 
 private:
     std::function<void()> wake_;
     LinuxRawWacomInput::GenerationProvider generation_provider_;
     std::unique_ptr<PltrWorkerBridge> worker_;
     bool ended_ = false;
+    bool batch_enabled_ = false;
 };

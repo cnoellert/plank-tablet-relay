@@ -1,3 +1,11 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.15) experimental; urgency=medium
+
+  * Negotiate lossless batches of adjacent Wacom input reports with capable
+    Vision Pro clients, reducing encrypted record overhead on the BLE link.
+    Older clients continue to receive individual reports.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:45:00 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.14) experimental; urgency=medium
 
   * Pack adjacent encrypted tablet records into LE SDUs during a bounded

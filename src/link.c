@@ -249,7 +249,7 @@ int pltr_link_send(PltrLink *link, uint16_t type,
         (link->role == PLTR_NOISE_RESPONDER && type == PLTR_INPUT_SAMPLE &&
          link->relay_session.stage != PLTR_RELAY_OBSERVING) ||
         (link->role == PLTR_NOISE_RESPONDER &&
-         type == PLTR_CLIENT_FRAME &&
+         (type == PLTR_CLIENT_FRAME || type == PLTR_CLIENT_FRAME_BATCH) &&
          link->relay_session.stage != PLTR_RELAY_READY)) return -1;
     if (send_secure(link, type, payload, payload_size,
                     out, capacity, written) != 0) return fail(link);

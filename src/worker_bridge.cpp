@@ -183,6 +183,29 @@ bool PltrWorkerBridge::pop(PltrQueuedTabletFrame &frame) {
     return true;
 }
 
+bool PltrWorkerBridge::popAdjacentInput(PltrQueuedTabletFrame &frame) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (queue_.empty() || queue_.front().plwh.size() < 8 ||
+        le16(queue_.front().plwh.data() + 6) != PLANK_RAW_HID_INPUT)
+        return false;
+    frame = std::move(queue_.front());
+    queue_.pop_front();
+    queued_bytes_ -= frame.plwh.size() + 8;
+    if (queue_diagnostics_) {
+        const auto now = monotonic_us();
+        if (frame.capture_time_us != 0 && now >= frame.capture_time_us)
+            max_queue_age_us_ = std::max(max_queue_age_us_, now - frame.capture_time_us);
+        ++dequeued_since_diagnostic_;
+    }
+    return true;
+}
+
+bool PltrWorkerBridge::hasQueuedInput() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !queue_.empty() && queue_.front().plwh.size() >= 8 &&
+           le16(queue_.front().plwh.data() + 6) == PLANK_RAW_HID_INPUT;
+}
+
 bool PltrWorkerBridge::failed() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return failed_;

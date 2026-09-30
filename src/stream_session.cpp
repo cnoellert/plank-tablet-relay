@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <poll.h>
+#include <thread>
 #include <sys/eventfd.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -106,6 +107,12 @@ int pltr_run_authenticated_stream_session(int socket_fd,
                     if (!send_worker_status(link, socket_fd, current_status)) break;
                     sent_status_epoch = current_status.epoch;
                 }
+                // One Wacom input report arrives about every 5 ms. A single
+                // bounded wait lets the next report share one encrypted record
+                // without delaying attachment or control messages.
+                if (link_type == 1 && dispatcher.batchEnabled() &&
+                    dispatcher.pendingInput())
+                    std::this_thread::sleep_for(std::chrono::milliseconds(4));
                 bool output_failed = false;
                 for (unsigned i = 0; i < 256; ++i) {
                     std::size_t written = 0;

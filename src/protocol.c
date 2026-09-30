@@ -119,6 +119,22 @@ static int valid_payload(uint16_t type, const uint8_t *bytes, size_t size,
         return size >= 8 && valid_plwh(bytes + 8, size - 8, PLTR_RELAY_TO_CLIENT) &&
                (read_le16(bytes + 8 + 6) == PLANK_RAW_HID_INPUT ||
                 memcmp(bytes, "\0\0\0\0\0\0\0\0", 8) == 0);
+    case PLTR_CLIENT_FRAME_BATCH: {
+        if (size < 1 || bytes[0] < 2 || bytes[0] > PLTR_MAX_BATCH_FRAMES)
+            return 0;
+        size_t offset = 1;
+        for (unsigned i = 0; i < bytes[0]; ++i) {
+            if (size - offset < 10) return 0;
+            const size_t frame_size = read_le16(bytes + offset + 8);
+            offset += 10;
+            if (frame_size > size - offset ||
+                !valid_plwh(bytes + offset, frame_size, PLTR_RELAY_TO_CLIENT) ||
+                read_le16(bytes + offset + 6) != PLANK_RAW_HID_INPUT)
+                return 0;
+            offset += frame_size;
+        }
+        return offset == size;
+    }
     case PLTR_STATUS:
         return valid_string(bytes, size, 7, 128) && bytes[0] <= 7 &&
                bytes[5] <= PLANK_RAW_HID_MAX_INTERFACES &&
@@ -174,7 +190,8 @@ static int allowed_type(uint16_t type, PltrDirection direction, PltrPhase phase)
                type == PLTR_INPUT_OBSERVE;
     }
     if (direction == PLTR_RELAY_TO_CLIENT) {
-        return type == PLTR_CLIENT_FRAME || type == PLTR_STATUS ||
+        return type == PLTR_CLIENT_FRAME || type == PLTR_CLIENT_FRAME_BATCH ||
+               type == PLTR_STATUS ||
                type == PLTR_INPUT_SAMPLE;
     }
     return 0;

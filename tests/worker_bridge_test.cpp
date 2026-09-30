@@ -34,6 +34,13 @@ int main() {
     assert(bridge.enqueue(frame, sizeof(frame)));
     assert(bridge.pop(item));
     assert(item.capture_time_us != 0 && item.plwh.back() == 7);
+    assert(bridge.enqueue(frame, sizeof(frame)));
+    frame[sizeof(frame) - 1] = 8;
+    assert(bridge.enqueue(frame, sizeof(frame)));
+    assert(bridge.hasQueuedInput());
+    assert(bridge.pop(item) && item.plwh.back() == 7);
+    assert(bridge.popAdjacentInput(item) && item.plwh.back() == 8);
+    assert(!bridge.hasQueuedInput() && !bridge.popAdjacentInput(item));
 
     std::uint8_t device[sizeof(PLANK_RAW_HID_WIRE_HEADER) +
                         sizeof(PLANK_RAW_HID_DEVICE_MESSAGE)] = {};
@@ -46,6 +53,7 @@ int main() {
     le32(device + sizeof(PLANK_RAW_HID_WIRE_HEADER) + 4, 0x056a);
     le32(device + sizeof(PLANK_RAW_HID_WIRE_HEADER) + 8, 0x0357);
     assert(bridge.enqueue(device, sizeof(device)));
+    assert(!bridge.hasQueuedInput() && !bridge.popAdjacentInput(item));
     const PltrWorkerStatus attaching = bridge.status();
     assert(attaching.state == 2 && attaching.vendor == 0x056a &&
            attaching.product == 0x0357 && attaching.interface_count == 2 &&

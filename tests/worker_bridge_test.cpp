@@ -16,7 +16,9 @@ static void le32(std::uint8_t *p, std::uint32_t value) {
 
 int main() {
     unsigned wakeups = 0;
-    PltrWorkerBridge bridge([&] { ++wakeups; });
+    PltrWorkerBridge bridge([&] { ++wakeups; }, {},
+                            [](std::uint16_t, std::uint32_t,
+                               std::uint32_t, std::uint16_t) { return true; });
     std::uint8_t frame[sizeof(PLANK_RAW_HID_WIRE_HEADER) + 1] = {};
     le32(frame, PLANK_RAW_HID_WIRE_MAGIC);
     le16(frame + 4, PLANK_RAW_HID_WIRE_VERSION);
@@ -45,6 +47,12 @@ int main() {
     le16(device + sizeof(PLANK_RAW_HID_WIRE_HEADER), 2);
     le32(device + sizeof(PLANK_RAW_HID_WIRE_HEADER) + 4, 0x056a);
     le32(device + sizeof(PLANK_RAW_HID_WIRE_HEADER) + 8, 0x0357);
+    PltrWorkerBridge unreadable([] {}, {},
+        [](std::uint16_t, std::uint32_t,
+           std::uint32_t, std::uint16_t) { return false; });
+    assert(!unreadable.enqueue(device, sizeof(device)));
+    assert(unreadable.status().state == 0);
+    assert(!unreadable.pop(item));
     assert(bridge.enqueue(device, sizeof(device)));
     const PltrWorkerStatus attaching = bridge.status();
     assert(attaching.state == 2 && attaching.vendor == 0x056a &&

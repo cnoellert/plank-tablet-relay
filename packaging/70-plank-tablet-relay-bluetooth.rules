@@ -1,0 +1,6 @@
+# Scoped access for a Wacom tablet bonded to Linux over Bluetooth HID/UHID.
+# Verified on the development NUC with PTH-660 BT HID ancestors such as
+# 0005:056A:0360.0001. HID_ID property and kernel sysname use different widths.
+# This grants the plank-relay service account access to only Wacom BT nodes.
+SUBSYSTEM=="hidraw", KERNEL=="hidraw*", KERNELS=="0005:056A:0360.*", GROUP="plank-relay", MODE="0660"
+SUBSYSTEM=="input", KERNEL=="event*", KERNELS=="0005:056A:0360.*", GROUP="plank-relay", MODE="0660"

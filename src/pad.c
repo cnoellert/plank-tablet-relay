@@ -14,6 +14,11 @@ static int has_key(const uint8_t *bits, unsigned key) {
     return (bits[key / 8] & (uint8_t)(1u << (key % 8))) != 0;
 }
 
+int pltr_pad_product_matches(uint16_t requested, uint16_t actual) {
+    return requested == 0 ? actual == 0x0357 || actual == 0x0360 :
+                            actual == requested;
+}
+
 int pltr_pad_open(PltrPad *pad, uint16_t vendor, uint16_t product) {
     if (pad == NULL || vendor == 0) return -1;
     memset(pad, 0, sizeof(*pad));
@@ -38,19 +43,26 @@ int pltr_pad_open(PltrPad *pad, uint16_t vendor, uint16_t product) {
         struct input_id id;
         uint8_t keys[BTN_7 / 8 + 1] = {0};
         if (ioctl(fd, EVIOCGID, &id) == 0 && id.vendor == vendor &&
-            id.product == product &&
+            pltr_pad_product_matches(product, id.product) &&
             ioctl(fd, EVIOCGNAME(sizeof(name)), name) >= 0 &&
             strstr(name, "Pad") != NULL &&
             ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keys)), keys) >= 0 &&
             has_key(keys, BTN_0) && has_key(keys, BTN_7)) {
+            if (pad->fd >= 0) {
+                // USB and Bluetooth may both be present. Never choose an
+                // arbitrary Pad for physical pairing or the idle chord.
+                close(fd);
+                pltr_pad_close(pad);
+                closedir(input);
+                return -1;
+            }
             pad->fd = fd;
-            closedir(input);
-            return 0;
+            continue;
         }
         close(fd);
     }
     closedir(input);
-    return -1;
+    return pad->fd >= 0 ? 0 : -1;
 }
 
 void pltr_pad_close(PltrPad *pad) {

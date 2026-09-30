@@ -2,7 +2,7 @@
 
 Source repository: `instinctual/plank-client` (GPL-3.0-or-later)
 
-Source commit: `e937564d43dc8d012dad89e1a76fd219b89fae49`
+Source commit: `4b0b569b847a708d0b55535c715f8e16ef906b65`
 
 Files copied without edits:
 
@@ -10,6 +10,7 @@ Files copied without edits:
 | --- | --- |
 | `linuxrawwacom.cpp` | `app/streaming/input/linuxrawwacom.cpp` |
 | `linuxrawwacom.h` | `app/streaming/input/linuxrawwacom.h` |
+| `wacomidentity.h` | `app/streaming/input/wacomidentity.h` |
 | `plank.h` | `moonlight-common-c/moonlight-common-c/src/plank.h` |
 
 CMake checks each file's SHA-256 digest against this snapshot before compiling

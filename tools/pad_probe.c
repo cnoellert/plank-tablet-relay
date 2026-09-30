@@ -13,7 +13,7 @@ static uint64_t monotonic_ms(void) {
 
 int main(void) {
     PltrPad pad;
-    if (pltr_pad_open(&pad, 0x056a, 0x0357) != 0) {
+    if (pltr_pad_open(&pad, 0x056a, 0) != 0) {
         fputs("Wacom pad input unavailable\n", stderr);
         return 1;
     }

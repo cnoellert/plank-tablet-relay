@@ -27,14 +27,14 @@ void run_case(std::size_t outgoing_mtu) {
     std::thread bridge([&] {
         assert(pltr_bridge_coc_stream(packets[0], stream[0], stop[0], outgoing_mtu) == 0);
     });
-    std::array<std::uint8_t, 120> outbound{};
+    std::array<std::uint8_t, 5000> outbound{};
     for (std::size_t i = 0; i < outbound.size(); ++i)
         outbound[i] = static_cast<std::uint8_t>(i);
     assert(send(stream[1], outbound.data(), outbound.size(), 0) ==
            static_cast<ssize_t>(outbound.size()));
     std::vector<std::uint8_t> reassembled;
     while (reassembled.size() < outbound.size()) {
-        std::array<std::uint8_t, 128> packet{};
+        std::array<std::uint8_t, 4096> packet{};
         const ssize_t count = readable(packets[1], packet.data(), packet.size());
         assert(count > 0 && static_cast<std::size_t>(count) <=
                std::min(outgoing_mtu, std::size_t{4096}));

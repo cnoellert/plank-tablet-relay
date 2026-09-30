@@ -1,4 +1,5 @@
 #include "tcp_session.hpp"
+#include "stream_session.hpp"
 #include "link.h"
 
 #include <array>
@@ -106,6 +107,61 @@ int main() {
     assert(server_result == -1);
     close(sockets[0]);
     pltr_link_clear(&client);
+
+    // The production raw-HID session also works over an already-accepted
+    // Bluetooth byte stream. It uses a distinct Noise prologue (link type 1)
+    // and the same approved-key lookup and SESSION_READY gate as TCP.
+    assert(pltr_identity_store_add(&store, client_public) == 0);
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
+    server_result = -2;
+    std::thread bluetooth([&] {
+        server_result = pltr_run_authenticated_stream_session(
+            sockets[1], store, -1, 1);
+        close(sockets[1]);
+    });
+    assert(pltr_link_init(&client, PLTR_NOISE_INITIATOR, client_private,
+                          store.public_key, nullptr, nullptr, 1) == 0);
+    assert(pltr_link_start(&client, output.data(), output.size(), &size) == 0);
+    send_bytes(sockets[0], output.data(), size);
+    assert(receive_link(sockets[0], client, reply.data(), reply.size(),
+                        reply_size).type == 0);
+    assert(reply_size != 0);
+    const std::size_t bluetooth_hello_size = reply_size;
+    assert(receive_link(sockets[0], client, reply.data(), reply.size(),
+                        reply_size).type == 0);
+    send_bytes(sockets[0], reply.data(), bluetooth_hello_size);
+    frame = receive_link(sockets[0], client, reply.data(),
+                         reply.size(), reply_size);
+    assert(frame.type == PLTR_STATUS && frame.payload[0] == 0);
+    assert(pltr_link_send(&client, PLTR_SESSION_READY, ready, sizeof(ready),
+                          output.data(), output.size(), &size) == 0);
+    send_bytes(sockets[0], output.data(), size);
+    assert(pltr_link_send(&client, PLTR_SESSION_END, end, sizeof(end),
+                          output.data(), output.size(), &size) == 0);
+    send_bytes(sockets[0], output.data(), size);
+    bluetooth.join();
+    assert(server_result == 0);
+    close(sockets[0]);
+    pltr_link_clear(&client);
+
+    assert(pltr_identity_store_remove(&store, client_public) == 0);
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
+    server_result = -2;
+    std::thread unknown_bluetooth([&] {
+        server_result = pltr_run_authenticated_stream_session(
+            sockets[1], store, -1, 1);
+        close(sockets[1]);
+    });
+    assert(pltr_link_init(&client, PLTR_NOISE_INITIATOR, client_private,
+                          store.public_key, nullptr, nullptr, 1) == 0);
+    assert(pltr_link_start(&client, output.data(), output.size(), &size) == 0);
+    send_bytes(sockets[0], output.data(), size);
+    unknown_bluetooth.join();
+    assert(server_result == -1);
+    close(sockets[0]);
+    pltr_link_clear(&client);
+    assert(pltr_run_authenticated_stream_session(-1, store, -1, 1) == -1);
+    assert(pltr_run_authenticated_stream_session(-1, store, -1, 3) == -1);
 
     pltr_identity_store_close(&store);
     for (const char *name : {"identity.key", "paired-clients.json", "store.lock"}) {

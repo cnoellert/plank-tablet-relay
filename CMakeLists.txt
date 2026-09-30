@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(plank_tablet_relay LANGUAGES C CXX)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 enable_testing()
 add_library(plank_relay_protocol STATIC src/protocol.c src/session.c)
@@ -13,6 +14,10 @@ add_test(NAME protocol_test COMMAND protocol_test)
 add_executable(session_test tests/session_test.c)
 target_link_libraries(session_test PRIVATE plank_relay_protocol)
 add_test(NAME session_test COMMAND session_test)
+
+add_executable(wacom_identity_test tests/wacom_identity_test.cpp)
+target_compile_features(wacom_identity_test PRIVATE cxx_std_17)
+add_test(NAME wacom_identity_test COMMAND wacom_identity_test)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_library(plank_relay_pad STATIC src/pad.c)
@@ -30,11 +35,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(PLANK_CLIENT_VENDOR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/plank-client")
     file(SHA256 "${PLANK_CLIENT_VENDOR}/linuxrawwacom.cpp" WORKER_CPP_SHA256)
     file(SHA256 "${PLANK_CLIENT_VENDOR}/linuxrawwacom.h" WORKER_H_SHA256)
+    file(SHA256 "${PLANK_CLIENT_VENDOR}/wacomidentity.h" WORKER_IDENTITY_SHA256)
     file(SHA256 "${PLANK_CLIENT_VENDOR}/plank.h" PLANK_H_SHA256)
     if(NOT WORKER_CPP_SHA256 STREQUAL
-            "fcb22a140232dc5eabd1f1a9de8db059992b4813334747da584429690979bcdc" OR
+            "654e2301f29779854d746185a5fb67230dd5d70942628a2c2b7f98193475804b" OR
        NOT WORKER_H_SHA256 STREQUAL
             "7f6c9880c2a91f80b1100246c8692e47b39a0973f460e10909ed8d20ccf916e4" OR
+       NOT WORKER_IDENTITY_SHA256 STREQUAL
+            "e339de432d646892ad1787741bfc3a61715dd5df239affe1ff90fec2bb3e93c4" OR
        NOT PLANK_H_SHA256 STREQUAL
             "b6a197da614ec5becc812b73d1d8e0ac5861cea22805f8443690b71ee16c8392")
         message(FATAL_ERROR "Vendored PLANK Client worker differs from its pinned snapshot")
@@ -138,6 +146,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/ble_controller_test.py")
         add_test(NAME ble_service_test COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/ble_service_test.py")
+        add_test(NAME ble_coc_test COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/ble_coc_test.py")
 
         add_executable(link_test tests/link_test.c)
         target_link_libraries(link_test PRIVATE plank_relay_link)
@@ -185,11 +195,23 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_link_libraries(session_dispatcher_test PRIVATE plank_relay_session_dispatcher)
         add_test(NAME session_dispatcher_test COMMAND session_dispatcher_test)
 
-        add_library(plank_relay_tcp_session STATIC src/tcp_session.cpp)
+        add_library(plank_relay_tcp_session STATIC
+            src/stream_session.cpp src/tcp_session.cpp)
         target_include_directories(plank_relay_tcp_session PUBLIC src)
         target_compile_features(plank_relay_tcp_session PUBLIC cxx_std_17)
         target_link_libraries(plank_relay_tcp_session PUBLIC
             plank_relay_session_dispatcher plank_relay_identity)
+
+        add_library(plank_relay_coc_stream STATIC src/coc_stream.cpp)
+        target_include_directories(plank_relay_coc_stream PUBLIC src)
+        target_compile_features(plank_relay_coc_stream PUBLIC cxx_std_17)
+        target_link_libraries(plank_relay_coc_stream PUBLIC plank_relay_tcp_session)
+        target_sources(plank_ble_lab PRIVATE src/ble_production.cpp)
+        target_link_libraries(plank_ble_lab PRIVATE plank_relay_coc_stream Threads::Threads)
+
+        add_executable(coc_stream_test tests/coc_stream_test.cpp)
+        target_link_libraries(coc_stream_test PRIVATE plank_relay_coc_stream)
+        add_test(NAME coc_stream_test COMMAND coc_stream_test)
 
         add_library(plank_relay_tcp_pair_session STATIC src/tcp_pair_session.cpp)
         target_include_directories(plank_relay_tcp_pair_session PUBLIC src)

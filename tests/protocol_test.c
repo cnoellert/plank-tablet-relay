@@ -77,6 +77,8 @@ int main(void) {
     check(PLTR_HELLO, PLTR_RELAY_TO_CLIENT, PLTR_SECURE, hello, sizeof(hello), 0);
     uint8_t ready[5] = {0}; le32(ready, 0x24); ready[4] = 1;
     check(PLTR_SESSION_READY, PLTR_CLIENT_TO_RELAY, PLTR_SECURE, ready, 5, 1);
+    le32(ready, 0x24 | PLTR_FEATURE_FRAME_BATCH);
+    check(PLTR_SESSION_READY, PLTR_CLIENT_TO_RELAY, PLTR_SECURE, ready, 5, 1);
     le32(ready, 0x04);
     check(PLTR_SESSION_READY, PLTR_CLIENT_TO_RELAY, PLTR_SECURE, ready, 5, 0);
     check(PLTR_SESSION_ACTIVE, PLTR_CLIENT_TO_RELAY, PLTR_SECURE, open, 1, 1);
@@ -112,6 +114,26 @@ int main(void) {
     check(PLTR_CLIENT_FRAME, PLTR_RELAY_TO_CLIENT, PLTR_SECURE, timed, sizeof(timed), 0);
     timed[0] = 0;
     check(PLTR_CLIENT_FRAME, PLTR_RELAY_TO_CLIENT, PLTR_SECURE, timed, sizeof(timed), 1);
+    uint8_t batch[1 + 2 * (10 + sizeof(hid))] = {0};
+    batch[0] = 2;
+    for (unsigned i = 0; i < 2; ++i) {
+        size_t offset = 1 + i * (10 + sizeof(hid));
+        batch[offset] = (uint8_t)(i + 1);
+        le16(batch + offset + 8, sizeof(hid));
+        memcpy(batch + offset + 10, hid, sizeof(hid));
+        le16(batch + offset + 10 + 6, PLANK_RAW_HID_INPUT);
+    }
+    check(PLTR_CLIENT_FRAME_BATCH, PLTR_RELAY_TO_CLIENT, PLTR_SECURE,
+          batch, sizeof(batch), 1);
+    check(PLTR_CLIENT_FRAME_BATCH, PLTR_RELAY_TO_CLIENT, PLTR_SECURE,
+          batch, sizeof(batch) - 1, 0);
+    batch[0] = 1;
+    check(PLTR_CLIENT_FRAME_BATCH, PLTR_RELAY_TO_CLIENT, PLTR_SECURE,
+          batch, sizeof(batch), 0);
+    batch[0] = 2;
+    batch[1 + 10 + 6] = PLANK_RAW_HID_SUSPEND;
+    check(PLTR_CLIENT_FRAME_BATCH, PLTR_RELAY_TO_CLIENT, PLTR_SECURE,
+          batch, sizeof(batch), 0);
 
     uint8_t record[2 + PLTR_HEADER_SIZE + 1] = {0};
     le16(record, PLTR_HEADER_SIZE + 1);

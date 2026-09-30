@@ -30,12 +30,15 @@ the running service retains that physical identity across sleep/wake.
 ## Install and configure
 
 Use the package matching `dpkg --print-architecture`: `arm64` for 64-bit ARM
-Linux, or `amd64` for x86-64. **Ubuntu 26.04 is the target OS** for both
-architectures. Automated builds use Ubuntu 26.04 containers on native ARM64
-and x86-64 runners. Bluetooth operation still requires
+Linux, or `amd64` for x86-64. Automated package targets are **Ubuntu 24.04
+arm64** (including the NanoPi Zero2's official Ubuntu image) and **Ubuntu
+26.04 arm64/amd64**. Builds and clean-install tests run in containers on native
+ARM64 and x86-64 runners. Bluetooth operation still requires
 qualification on the board's kernel, radio and firmware. The existing physical
-qualification is Ubuntu 26.04 amd64 with Intel 7265. There is no 32-bit `armhf`
-build. The `.deb` format does not imply Debian or older Ubuntu compatibility;
+qualification includes Ubuntu 26.04 amd64 with Intel 7265 and a dev NUC with
+the AX900. There is no 32-bit `armhf`
+build. Ubuntu 24.04 package CI does not yet qualify the NanoPi's actual
+Bluetooth controller. The `.deb` format does not imply Debian or other Ubuntu compatibility;
 OpenWrt/FriendlyWrt cannot install this package.
 
 ```sh
@@ -64,6 +67,50 @@ headset's saved approval. Wake it to resume input.
 The service retries missing adapters/startup failures and re-registers after
 BlueZ restarts. `active (running)` means GATT registration and advertising have
 completed; it does not claim a tablet or headset is currently connected.
+
+## NanoPi Zero2 first hardware check
+
+On a NanoPi Zero2 with FriendlyELEC's Ubuntu 24.04 arm64 image and kernel
+6.1.141, package `0.2.0~visionos-tablet-setup.9` installed cleanly. Its
+configuration check passed, the production LE listener received dynamic PSM
+`0x80`, and the managed service advertised after installation and a full board
+reboot. The first package exposed a physical-only Python socket limitation:
+Python's two-field L2CAP `bind` wrapper selected BR/EDR and rejected the LE
+address tuple. The package now uses Linux's full `sockaddr_l2` for LE binding.
+
+This check does **not** qualify a Client session or tablet input. The USB radio
+connected for the first scan reported ID `3625:010b`, the TP-Link Archer TX10UB
+Nano ([TP-Link specifications](https://www.tp-link.com/mx/home-networking/adapter/archer-tx10ub-nano/),
+Wi-Fi 6 / Bluetooth 5.3). BlueZ exposed a powered controller, but BR/EDR and
+LE scans did not discover the nearby Wacom while it was flashing in pairing
+mode. Neither a tablet bond nor an AVP channel was established. Investigate
+this adapter's Linux firmware/driver or qualify a different radio before
+calling the NanoPi Bluetooth path ready.
+
+The same AX900 on an Ubuntu 26.04 amd64 NUC with kernel 7.0.0-34 loaded
+`rtl8851bu_fw.bin`, discovered both an MX Anywhere 3S and the flashing
+`BT IntuosPro M`, and exposed its own controller as `hci1`. On this NUC, a
+physical Vision Pro established a saved-key Noise LE CoC session, attached a
+USB Wacom to the Host, and delivered pen movement, tip clicks and pressure.
+The first sustained input runs exposed BLE queueing despite immediate worker
+capture. Package `.14` grouped encrypted records into LE SDUs; package `.15`
+adds a negotiated, lossless batch of adjacent input reports. At about 200
+reports/s, the `.15` Relay worker queue usually held reports for about 4 ms,
+and controller TX latency averaged about 54 ms during one physical run. A later
+continuous-stroke run briefly built a 73-report queue with an oldest report
+age of 355 ms before recovering. The AVP's bounded replay reduced pen delay
+but long curves remained faceted. Bluetooth drawing remains slower and less
+even than the network Relay; it is not a long-session or sleep/reconnect
+qualification. The
+NanoPi test
+ended after a fixed-output 12 V adapter was mistakenly connected to its 5 V
+power input; the board then showed no LEDs, Ethernet link, or USB recovery
+enumeration. Do not interpret that hardware failure as a Relay software result.
+
+On the NUC, the Relay advertises its production listener on dynamic PSM
+`0x80` using `hci1`. The current physical pen test used USB tablet capture;
+Wacom-to-NUC Bluetooth and extended concurrent operation still need separate
+qualification with the production service.
 
 ## Qualified Intel 7265 compatibility settings
 
@@ -115,8 +162,9 @@ control and can be removed separately.
 ## Build and validation
 
 Install `build-essential cmake ninja-build pkg-config libudev-dev python3
-python3-dbus python3-gi debhelper dh-python curl ca-certificates git` in an Ubuntu 26.04
-builder. From a clean committed checkout run `scripts/build-relay-deb.sh`.
+python3-dbus python3-gi debhelper dh-python curl ca-certificates git` in a matching
+Ubuntu 24.04 or 26.04 builder. From a clean committed checkout run
+`scripts/build-relay-deb.sh`.
 The script snapshots that commit, verifies the pinned libsodium 1.0.22 archive,
 builds it statically with PIC, runs its tests and the relay's assertions-enabled
 tests, and creates `.deb`, `.buildinfo`, `.changes` and SHA-256 artifacts in
@@ -129,19 +177,19 @@ rejects cross-builds because the packaged library and its tests must execute.
 The prepared source remains under `build/deb`
 for inspection. The package includes the libsodium license.
 
-The `Linux relay packages` GitHub Actions workflow builds both architectures
-in Ubuntu 26.04 containers, runs the tests, checks the binary with lintian, and
-installs it for a configuration/native-library smoke check.
-The same binaries are installed, smoke-tested and removed in fresh Ubuntu 26.04
-containers on both architectures, including Python bytecode cleanup.
-Download the
-matching `relay-ubuntu26.04-arm64-<commit>` or `relay-ubuntu26.04-amd64-<commit>` artifact
+The `Linux relay packages` GitHub Actions workflow builds Ubuntu 24.04 arm64
+and Ubuntu 26.04 arm64/amd64 packages, runs tests, checks each package with
+lintian, and performs a configuration/native-library smoke check. The same
+binaries are installed, smoke-tested and removed in fresh matching Ubuntu
+containers, including Python bytecode cleanup. Download the matching
+`relay-ubuntu24.04-arm64-<commit>`, `relay-ubuntu26.04-arm64-<commit>`, or
+`relay-ubuntu26.04-amd64-<commit>` artifact
 from the workflow run, then check `sha256sum -c SHA256SUMS` inside its package
 directory. CI does not exercise a physical Bluetooth controller or systemd
 reboot/recovery; those checks remain part of hardware qualification.
 
 The service runs as root for BlueZ administration, raw controller setup and
-read-only input access, with only `CAP_NET_ADMIN` and `CAP_NET_RAW`, restricted
+bounded hidraw read/write access, with only `CAP_NET_ADMIN` and `CAP_NET_RAW`, restricted
 device/address-family access and filesystem protections. It opens no TCP port.
 Tablet data uses the existing CPace/Noise implementation. The three-press
 initial approval scheme retains its documented nearby-attacker enrollment

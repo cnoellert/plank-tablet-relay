@@ -16,6 +16,8 @@ extern "C" {
 #define PLTR_MAX_RECORD_BODY_SIZE (PLTR_MAX_FRAME_SIZE + 16u)
 #define PLTR_FEATURE_RAW_HID 1u
 #define PLTR_FEATURE_INPUT_OBSERVER 2u
+#define PLTR_FEATURE_FRAME_BATCH 0x80000000u
+#define PLTR_MAX_BATCH_FRAMES 4u
 #define PLTR_INPUT_SAMPLE_SIZE 80u
 // Public domain value for physically approved lab enrollment, NOT a password.
 // This mode has no first-pairing MITM protection. Saved-key Noise is unchanged.
@@ -36,6 +38,7 @@ typedef enum PltrType {
     PLTR_GOODBYE = 12,
     PLTR_INPUT_OBSERVE = 13,
     PLTR_INPUT_SAMPLE = 14,
+    PLTR_CLIENT_FRAME_BATCH = 15,
     PLTR_OPEN = 16,
     PLTR_NOISE = 17,
     PLTR_PAIR_START = 32,

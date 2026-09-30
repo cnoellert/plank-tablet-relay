@@ -249,8 +249,8 @@ Command Status before Command Complete, adapter selection and bounded
 management responses. Service tests check safe defaults, busy-adapter refusal,
 readiness ordering and recovery triggers. Preserve that coverage in a port.
 
-Current package targets are Ubuntu 26.04 `arm64` and `amd64`. Package tests
-on both architectures do not qualify an ARM board's radio. Report the exact
+Current package targets are Ubuntu 24.04 `arm64` and Ubuntu 26.04 `arm64`/
+`amd64`. Package tests do not qualify an ARM board's radio. Report the exact
 controller, firmware, kernel, BlueZ and visionOS versions used for physical
 acceptance, and distinguish automated results from device tests still pending.
 

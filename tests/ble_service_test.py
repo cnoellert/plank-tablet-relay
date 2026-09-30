@@ -13,10 +13,19 @@ from ble_lab.capture import Capture, SAMPLE
 from ble_lab.config import read_settings
 from ble_lab.controller import clear_advertisements
 from ble_lab.notify import ready
-from ble_lab.bluez import Server, PROPERTIES
+from ble_lab.bluez import Server, PSMCharacteristic, PROPERTIES
 
 
 class ServiceTests(unittest.TestCase):
+    def test_psm_characteristic_is_little_endian_and_requires_listener(self):
+        characteristic = PSMCharacteristic.__new__(PSMCharacteristic)
+        characteristic.server = MagicMock()
+        characteristic.server.coc.psm = 0x81
+        self.assertEqual(list(characteristic.ReadValue({})), [0x81, 0])
+        characteristic.server.coc.psm = 0
+        with self.assertRaisesRegex(Exception, 'unavailable'):
+            characteristic.ReadValue({})
+
     def read(self, content):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'relay.conf'

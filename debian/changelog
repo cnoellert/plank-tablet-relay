@@ -1,3 +1,58 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.15) experimental; urgency=medium
+
+  * Negotiate lossless batches of adjacent Wacom input reports with capable
+    Vision Pro clients, reducing encrypted record overhead on the BLE link.
+    Older clients continue to receive individual reports.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:45:00 +0000
+
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.14) experimental; urgency=medium
+
+  * Pack adjacent encrypted tablet records into LE SDUs during a bounded
+    seven-millisecond window. The physical AX900 link otherwise queued the
+    200-report/s pen stream for seconds despite immediate tablet capture.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:30:00 +0000
+
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.13) experimental; urgency=medium
+
+  * Add optional, payload-free queue timing diagnostics for physical Bluetooth
+    latency qualification. Enable with PLANK_RELAY_QUEUE_DIAGNOSTICS=1.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:20:00 +0000
+
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.12) experimental; urgency=medium
+
+  * Permit the exact Wacom capture worker to open hidraw for read/write under
+    the service device policy. Without this, Bluetooth identity verification
+    succeeds but the tablet never attaches.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 04:18:00 +0000
+
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.11) experimental; urgency=medium
+
+  * Query the LE Credit Based channel's send MTU using BT_SNDMTU. Linux
+    rejects the older BR/EDR L2CAP_OPTIONS query and closed live sessions.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 03:58:00 +0000
+
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.10) experimental; urgency=medium
+
+  * Accept LE channels advertising MTUs larger than the bounded send buffer
+    by sending smaller packets within the negotiated limit.
+  * Log data-channel acceptance and negotiated MTU without logging identities
+    or payloads, to diagnose live Noise handshake failures.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 03:45:00 +0000
+
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.9) experimental; urgency=medium
+
+  * Bind the production data channel as Bluetooth LE on Linux, bypassing
+    Python's BR/EDR-only L2CAP address wrapper.
+  * Accept Linux-assigned even dynamic LE PSM values such as 0x80.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 02:22:22 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.8) experimental; urgency=medium
 
   * Target Ubuntu 26.04 for native arm64 and amd64 builds and installation.

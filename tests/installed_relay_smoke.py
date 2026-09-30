@@ -12,6 +12,10 @@ library = private / 'libplank_ble_lab.so'
 assert library.is_file(), 'Packaged ctypes library missing or renamed'
 launcher = root / 'usr/bin/plank-tablet-relay-ble'
 assert launcher.read_text().splitlines()[0] == '#!/usr/bin/python3 -I'
+units = list(root.rglob('plank-tablet-relay-ble.service'))
+assert len(units) == 1, 'Packaged systemd service missing or duplicated'
+assert 'DeviceAllow=char-hidraw rw' in units[0].read_text().splitlines(), \
+    'Raw Wacom capture needs read/write hidraw access'
 sys.path.insert(0, str(private))
 from ble_lab.config import read_settings
 from ble_lab.native import Native

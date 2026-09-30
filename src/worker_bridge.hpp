@@ -41,6 +41,8 @@ public:
     void finishReconnect();
     void handleControl(const std::uint8_t *bytes, std::size_t size);
     bool pop(PltrQueuedTabletFrame &frame);
+    bool popAdjacentInput(PltrQueuedTabletFrame &frame);
+    bool hasQueuedInput() const;
     bool failed() const;
     PltrWorkerStatus status() const;
 
@@ -54,6 +56,11 @@ private:
     std::deque<PltrQueuedTabletFrame> queue_;
     std::size_t queued_bytes_ = 0;
     bool failed_ = false;
+    bool queue_diagnostics_ = false;
+    std::uint64_t last_queue_diagnostic_us_ = 0;
+    std::uint64_t max_queue_age_us_ = 0;
+    std::size_t max_queue_depth_ = 0;
+    std::size_t dequeued_since_diagnostic_ = 0;
     PltrWorkerStatus status_;
     std::uint16_t generation_ = 0;
     std::function<void()> wake_;

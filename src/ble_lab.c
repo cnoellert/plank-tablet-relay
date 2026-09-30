@@ -2,6 +2,7 @@
 // Small opaque adapter for the BlueZ diagnostic service. Cryptographic and
 // persistent pairing behavior come from the production protocol implementation.
 #include "ble_lab.h"
+#include "ble_lab_internal.h"
 #include "identity.h"
 #include "link.h"
 #include "pair_budget.h"
@@ -23,6 +24,15 @@ struct PltrBleLab {
     unsigned presses, prior_failures;
     int attached, status_dirty, physically_approved;
 };
+
+PltrIdentityStore *pltr_ble_lab_identity_store(PltrBleLab *lab) {
+    return lab ? &lab->store : NULL;
+}
+
+int pltr_ble_lab_pairing_busy(const PltrBleLab *lab) {
+    return lab && (lab->mode == 2 || lab->mode == 3) &&
+        lab->wire.stage != PLTR_PAIR_WIRE_DONE;
+}
 
 static void clear_presses(PltrBleLab *lab) {
     lab->button = lab->held = 0;

@@ -1,4 +1,5 @@
 #include "session_dispatcher.hpp"
+#include "../vendor/plank-client/plank.h"
 
 #include <cstring>
 #include <limits>

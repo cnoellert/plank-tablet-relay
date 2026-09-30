@@ -1,3 +1,10 @@
+plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.11) experimental; urgency=medium
+
+  * Query the LE Credit Based channel's send MTU using BT_SNDMTU. Linux
+    rejects the older BR/EDR L2CAP_OPTIONS query and closed live sessions.
+
+ -- PLANK contributors <625982+alatteri@users.noreply.github.com>  Wed, 30 Sep 2026 03:58:00 +0000
+
 plank-tablet-relay-ble (0.2.0~visionos-tablet-setup.10) experimental; urgency=medium
 
   * Accept LE channels advertising MTUs larger than the bounded send buffer

@@ -33,19 +33,25 @@ permissions:
 
 jobs:
   package:
-    name: Ubuntu 26.04 / ${{ matrix.arch }}
+    name: Ubuntu ${{ matrix.release }} / ${{ matrix.arch }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - release: '24.04'
+            arch: arm64
+            machine: aarch64
+            runner: ubuntu-24.04-arm
+          - release: '26.04'
+            arch: amd64
             machine: x86_64
             runner: ubuntu-24.04
-          - arch: arm64
+          - release: '26.04'
+            arch: arm64
             machine: aarch64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
-    container: ubuntu:26.04
+    container: ubuntu:${{ matrix.release }}
     timeout-minutes: 30
     defaults:
       run:
@@ -81,7 +87,7 @@ jobs:
         run: |
           set -o pipefail
           package_version=$(dpkg-parsechangelog -SVersion)
-          package=(artifacts/deb/"$package_version"/ubuntu-26.04/${{ matrix.arch }}/plank-tablet-relay-ble_*.deb)
+          package=(artifacts/deb/"$package_version"/ubuntu-${{ matrix.release }}/${{ matrix.arch }}/plank-tablet-relay-ble_*.deb)
           test "${#package[@]}" = 1
           test "$(dpkg-deb -f "${package[0]}" Version)" = "$package_version"
           test "$(dpkg-deb -f "${package[0]}" Architecture)" = '${{ matrix.arch }}'
@@ -101,24 +107,29 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: relay-ubuntu26.04-${{ matrix.arch }}-${{ github.sha }}
+          name: relay-ubuntu${{ matrix.release }}-${{ matrix.arch }}-${{ github.sha }}
           path: artifacts/
           if-no-files-found: error
           retention-days: 30
 
   install:
-    name: Clean Ubuntu 26.04 install / ${{ matrix.arch }}
+    name: Clean Ubuntu ${{ matrix.release }} install / ${{ matrix.arch }}
     needs: package
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - release: '24.04'
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - release: '26.04'
+            arch: amd64
             runner: ubuntu-24.04
-          - arch: arm64
+          - release: '26.04'
+            arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
-    container: ubuntu:26.04
+    container: ubuntu:${{ matrix.release }}
     timeout-minutes: 10
     defaults:
       run:
@@ -138,14 +149,14 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: relay-ubuntu26.04-${{ matrix.arch }}-${{ github.sha }}
+          name: relay-ubuntu${{ matrix.release }}-${{ matrix.arch }}-${{ github.sha }}
           path: artifacts
       - name: Install, exercise and remove package
         run: |
-          package=(artifacts/deb/*/ubuntu-26.04/${{ matrix.arch }}/plank-tablet-relay-ble_*.deb)
+          package=(artifacts/deb/*/ubuntu-${{ matrix.release }}/${{ matrix.arch }}/plank-tablet-relay-ble_*.deb)
           test "${#package[@]}" = 1
           package_version=$(dpkg-deb -f "${package[0]}" Version)
-          test "$(dirname "${package[0]}")" = "artifacts/deb/$package_version/ubuntu-26.04/${{ matrix.arch }}"
+          test "$(dirname "${package[0]}")" = "artifacts/deb/$package_version/ubuntu-${{ matrix.release }}/${{ matrix.arch }}"
           (cd "$(dirname "${package[0]}")" && sha256sum -c SHA256SUMS)
           apt-get install -y "./${package[0]}"
           plank-tablet-relay-ble --check-config

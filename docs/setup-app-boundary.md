@@ -1,6 +1,6 @@
 # Tablet setup app and PLANK connection boundary
 
-## Decision for the next integration slice
+## Current boundary — Vision Client build 36
 
 Use a separate headset app to commission and manage the headless Relay box.
 Keep PLANK's tablet UI limited to choosing a configured Relay, establishing
@@ -8,6 +8,14 @@ PLANK's own trusted connection, and showing session readiness and errors. Keep
 the tablet stream bound to the PLANK desktop session. The setup app must not be
 required to remain open while drawing.
 
+Setup now registers a Relay with PLANK through an identity-bound handoff.
+PLANK presents an already configured Relay picker plus a Setup entry; commissioning
+and network configuration stay in Setup. The handoff does not copy private keys
+or treat an address as authorization. PLANK proves/pins the drawing identity
+and uses the advertised network drawing route. Labels distinguish discovery,
+Setup control/preview transport, and the PLANK drawing route.
+
+The following September 30 rollout description predates that handoff.
 The guarded development services now coexist on the test Relay box; physical
 Setup app handoff qualification remains open. The working `plank-tablet-relay` service listens on TCP 28990 and
 forwards Wacom raw-HID reports to the PLANK Client. Alan's current
@@ -25,7 +33,7 @@ before running them together.
 | --- | --- | --- |
 | Setup app | NUC discovery and commissioning, choosing USB/Bluetooth tablet, Bluetooth enrollment, network setup, detailed diagnostics, service updates | Active PLANK desktop session or pen transport |
 | Headless Relay service | One tablet attachment, tablet state and permissions, approved Client identities, encrypted input stream, session lifecycle | Desktop/Flame credentials |
-| PLANK Client | Select nearby Relay or saved/manual address, authorize its own Relay identity, show ready/failed state, start and end the tablet link with its desktop session | BlueZ pairing, Wi-Fi provisioning, NUC administration |
+| PLANK Client | Select a Relay registered through Setup, verify/pin its drawing identity, show ready/failed state, start and end the tablet link with its desktop session | BlueZ pairing, Wi-Fi provisioning, NUC administration |
 
 The first implementation step retains both ports for compatibility, but there
 must be **one active tablet reader**. The managed service may report passive
@@ -46,7 +54,7 @@ must not hold it for passive status or network management, and PLANK's idle
 Pad reader must not start a physical approval window while Setup owns it.
 This is a local ownership interlock, not a network authorization mechanism.
 
-## Trust and discovery
+## Historical trust and discovery design — September 30, 2026
 
 Wacom-to-NUC Bluetooth bonding is separate from PLANK-to-Relay trust. The
 current PLANK Client stores its Relay identity in its device-local Keychain.

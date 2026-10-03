@@ -1,0 +1,22 @@
+{
+  "listener": {
+    "drawingIdentity": "b4805f947954ddad8645c4a87d1bead9bcd2aceb3cacfa133dcdf10f1048191c",
+    "drawingProtocol": {
+      "name": "pltr-raw-hid",
+      "version": 1,
+      "rawHID": 1,
+      "linkType": 2
+    },
+    "boundAddress": "127.0.0.1",
+    "boundPort": 28990
+  },
+  "hostAddresses": [
+    "192.0.2.10",
+    "203.0.113.30"
+  ],
+  "families": [
+    "AF_INET"
+  ],
+  "expectedOutcome": "listener.loopbackOnly",
+  "expectedRoutes": []
+}

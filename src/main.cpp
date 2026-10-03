@@ -1,4 +1,5 @@
 #include "capture_lease.hpp"
+#include "drawing_status_server.hpp"
 #include "identity.h"
 #include "pad.h"
 #include "pair_budget.h"
@@ -60,7 +61,7 @@ bool inspect_open(int fd, std::uint8_t &mode) {
     return true;
 }
 
-int listener(const char *address, std::uint16_t port) {
+int listener(const char *address, std::uint16_t port, sockaddr_in *bound) {
     sockaddr_in target{};
     target.sin_family = AF_INET;
     target.sin_port = htons(port);
@@ -74,7 +75,52 @@ int listener(const char *address, std::uint16_t port) {
         close(fd);
         return -1;
     }
+    // The public status interface reports what the listener is actually bound
+    // to, observed from the socket, never re-derived configuration (contract
+    // section 9). An operator-owned EnvironmentFile can override the unit
+    // default, so the two can differ.
+    if (bound != nullptr) {
+        sockaddr_in observed{};
+        socklen_t length = sizeof(observed);
+        if (getsockname(fd, reinterpret_cast<sockaddr *>(&observed), &length) == 0 &&
+            length == sizeof(observed) && observed.sin_family == AF_INET) {
+            *bound = observed;
+        } else {
+            *bound = target;
+        }
+    }
     return fd;
+}
+
+// Publishes the public listener metadata on the abstract status name before the
+// drawing listener accepts its first connection. One bind attempt; EADDRINUSE is
+// logged and drawing traffic continues without a status interface (contract
+// section 8.4). Absence never opens enrollment and never touches the capture
+// lease.
+void publish_drawing_status(PltrDrawingStatusServer &status,
+                           const PltrIdentityStore &store,
+                           const sockaddr_in &bound) {
+    char text[INET_ADDRSTRLEN] = {0};
+    const std::uint16_t port = ntohs(bound.sin_port);
+    if (inet_ntop(AF_INET, &bound.sin_addr, text, sizeof(text)) == nullptr ||
+        !status.publishListener(store.public_key, text, port)) {
+        std::fputs("Drawing handoff status unavailable: the drawing listener "
+                   "address cannot be published\n", stderr);
+    }
+    int error = 0;
+    switch (status.bind(&error)) {
+    case PltrDrawingStatusServer::BindResult::Bound:
+        break;
+    case PltrDrawingStatusServer::BindResult::Busy:
+        std::fputs("Drawing handoff status name already bound (EADDRINUSE); "
+                   "serving drawing traffic without it\n", stderr);
+        break;
+    case PltrDrawingStatusServer::BindResult::Error:
+        std::fprintf(stderr, "Drawing handoff status name unavailable (%s); "
+                     "serving drawing traffic without it\n",
+                     std::strerror(error));
+        break;
+    }
 }
 
 bool acquire_pairing_lease(PltrCaptureLease &lease) {
@@ -165,7 +211,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (!pairing_mode) (void)pltr_pad_open(&pad, 0x056a, 0);
-    const int server = listener(bind_address, port);
+    sockaddr_in bound{};
+    const int server = listener(bind_address, port, &bound);
     int signal_pipe[2];
     if (server < 0 || pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK) != 0) {
         std::fputs("Relay listener could not start\n", stderr);
@@ -182,6 +229,10 @@ int main(int argc, char **argv) {
     sigemptyset(&action.sa_mask);
     sigaction(SIGINT, &action, nullptr);
     sigaction(SIGTERM, &action, nullptr);
+    PltrDrawingStatusServer drawing_status;
+    // The pairing invocation is a separate short-lived process; the installed
+    // unit runs "serve", and only that instance publishes the status name.
+    if (!pairing_mode) publish_drawing_status(drawing_status, store, bound);
     PltrDnsSd publisher(store.public_key, port);
     if (!publisher.start())
         std::fputs("Local Relay discovery unavailable; manual address still works\n", stderr);
@@ -206,6 +257,7 @@ int main(int argc, char **argv) {
     std::uint64_t next_pad_retry = 0;
     while (!stopping) {
         const auto now = monotonic_ms();
+        drawing_status.service(now);
         if (pltr_pairing_tick(&pairing, now) < 0) break;
         if (pairing.stage != PLTR_PAIR_WINDOW && publisher.pairing())
             publisher.setPairing(false);
@@ -296,6 +348,7 @@ int main(int argc, char **argv) {
         close(client);
     }
     close(server);
+    drawing_status.close();
     publisher.stop();
     close(signal_pipe[0]);
     close(signal_pipe[1]);

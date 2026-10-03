@@ -1,0 +1,31 @@
+{
+  "listener": {
+    "drawingIdentity": "b4805f947954ddad8645c4a87d1bead9bcd2aceb3cacfa133dcdf10f1048191c",
+    "drawingProtocol": {
+      "name": "pltr-raw-hid",
+      "version": 1,
+      "rawHID": 1,
+      "linkType": 2
+    },
+    "boundAddress": "0.0.0.0",
+    "boundPort": 28990
+  },
+  "hostAddresses": [
+    "192.0.2.10",
+    "198.51.100.20"
+  ],
+  "families": [
+    "AF_INET"
+  ],
+  "expectedOutcome": "conversion.ok",
+  "expectedRoutes": [
+    {
+      "address": "192.0.2.10",
+      "port": 28990
+    },
+    {
+      "address": "198.51.100.20",
+      "port": 28990
+    }
+  ]
+}

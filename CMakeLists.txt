@@ -14,6 +14,20 @@ add_executable(session_test tests/session_test.c)
 target_link_libraries(session_test PRIVATE plank_relay_protocol)
 add_test(NAME session_test COMMAND session_test)
 
+# Portable public drawing-status serializer and literal validator: libc only, so
+# its fixture test runs on macOS too (contract section 12.1). Registered above
+# the Linux guard deliberately. Configure with no CMAKE_BUILD_TYPE (or Debug);
+# the test uses explicit failure checks, never assert, so NDEBUG cannot void it.
+add_library(plank_relay_drawing_status STATIC src/drawing_status.c)
+target_include_directories(plank_relay_drawing_status PUBLIC src)
+target_compile_features(plank_relay_drawing_status PUBLIC c_std_11)
+
+add_executable(drawing_status_test tests/drawing_status_test.c)
+target_link_libraries(drawing_status_test PRIVATE plank_relay_drawing_status)
+target_compile_definitions(drawing_status_test PRIVATE
+    PLANK_HANDOFF_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/plank-drawing-handoff-v1")
+add_test(NAME drawing_status_test COMMAND drawing_status_test)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_library(plank_relay_capture_lease STATIC src/capture_lease.cpp)
     target_include_directories(plank_relay_capture_lease PUBLIC src)
@@ -22,6 +36,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(capture_lease_test tests/capture_lease_test.cpp)
     target_link_libraries(capture_lease_test PRIVATE plank_relay_capture_lease)
     add_test(NAME capture_lease_test COMMAND capture_lease_test)
+
+    # Abstract-socket plumbing and the SO_PEERCRED check are Linux-only.
+    add_library(plank_relay_drawing_status_server STATIC src/drawing_status_server.cpp)
+    target_include_directories(plank_relay_drawing_status_server PUBLIC src)
+    target_compile_features(plank_relay_drawing_status_server PUBLIC cxx_std_17)
+    target_link_libraries(plank_relay_drawing_status_server PUBLIC plank_relay_drawing_status)
+
+    add_executable(drawing_status_server_test tests/drawing_status_server_test.cpp)
+    target_link_libraries(drawing_status_server_test PRIVATE
+        plank_relay_drawing_status_server plank_relay_capture_lease)
+    add_test(NAME drawing_status_server_test COMMAND drawing_status_server_test)
 
     add_library(plank_relay_pad STATIC src/pad.c)
     target_include_directories(plank_relay_pad PUBLIC src)
@@ -207,7 +232,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_executable(plank-tablet-relay src/main.cpp src/dnssd.cpp)
         target_link_libraries(plank-tablet-relay PRIVATE
             plank_relay_tcp_session plank_relay_tcp_pair_session
-            plank_relay_pair_budget PkgConfig::SODIUM)
+            plank_relay_pair_budget plank_relay_drawing_status_server
+            PkgConfig::SODIUM)
         if(AVAHI_FOUND)
             target_compile_definitions(plank-tablet-relay PRIVATE PLTR_HAS_AVAHI=1)
             target_link_libraries(plank-tablet-relay PRIVATE PkgConfig::AVAHI)

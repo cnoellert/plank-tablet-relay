@@ -44,7 +44,8 @@ static PltrFrame receive_link(int fd, PltrLink &link,
     return frame;
 }
 
-int main() {
+int main(int argc, char **) {
+    const unsigned link_type = argc > 1 ? 1 : 2;
     assert(sodium_init() >= 0);
     const std::string lease_name = "plank-tcp-session-test-" +
                                    std::to_string(getpid());
@@ -60,12 +61,12 @@ int main() {
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
     int server_result = -2;
     std::thread server([&] {
-        server_result = pltr_run_tcp_session(sockets[1], store, -1, lease_name);
+        server_result = pltr_run_stream_session(sockets[1], store, -1, link_type, lease_name);
         close(sockets[1]);
     });
     PltrLink client{};
     assert(pltr_link_init(&client, PLTR_NOISE_INITIATOR, client_private,
-                          store.public_key, nullptr, nullptr, 2) == 0);
+                          store.public_key, nullptr, nullptr, link_type) == 0);
     std::array<std::uint8_t, 2 + PLTR_MAX_RECORD_BODY_SIZE> output{}, reply{};
     std::size_t size = 0, reply_size = 0;
     assert(pltr_link_start(&client, output.data(), output.size(), &size) == 0);
@@ -101,11 +102,11 @@ int main() {
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
     server_result = -2;
     std::thread busy_server([&] {
-        server_result = pltr_run_tcp_session(sockets[1], store, -1, lease_name);
+        server_result = pltr_run_stream_session(sockets[1], store, -1, link_type, lease_name);
         close(sockets[1]);
     });
     assert(pltr_link_init(&client, PLTR_NOISE_INITIATOR, client_private,
-                          store.public_key, nullptr, nullptr, 2) == 0);
+                          store.public_key, nullptr, nullptr, link_type) == 0);
     assert(pltr_link_start(&client, output.data(), output.size(), &size) == 0);
     send_bytes(sockets[0], output.data(), size);
     assert(receive_link(sockets[0], client, reply.data(), reply.size(),
@@ -134,11 +135,11 @@ int main() {
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
     server_result = -2;
     std::thread unpaired([&] {
-        server_result = pltr_run_tcp_session(sockets[1], store, -1, lease_name);
+        server_result = pltr_run_stream_session(sockets[1], store, -1, link_type, lease_name);
         close(sockets[1]);
     });
     assert(pltr_link_init(&client, PLTR_NOISE_INITIATOR, client_private,
-                          store.public_key, nullptr, nullptr, 2) == 0);
+                          store.public_key, nullptr, nullptr, link_type) == 0);
     assert(pltr_link_start(&client, output.data(), output.size(), &size) == 0);
     send_bytes(sockets[0], output.data(), size);
     unpaired.join();

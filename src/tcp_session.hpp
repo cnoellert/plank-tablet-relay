@@ -12,3 +12,9 @@
 int pltr_run_tcp_session(
     int socket_fd, PltrIdentityStore &store, int stop_fd,
     std::string capture_lease_name = PltrCaptureLease::ProductionName);
+
+// The authenticated Bluetooth stream arrives through the root-only local
+// bridge. Link type is part of the Noise transcript, never inferred from bytes.
+int pltr_run_stream_session(
+    int socket_fd, PltrIdentityStore &store, int stop_fd, unsigned link_type,
+    std::string capture_lease_name = PltrCaptureLease::ProductionName);

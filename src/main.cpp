@@ -7,6 +7,7 @@
 #include "protocol.h"
 #include "tcp_pair_session.hpp"
 #include "tcp_session.hpp"
+#include "bluetooth_drawing_server.hpp"
 #include "dnssd.hpp"
 
 #include <arpa/inet.h>
@@ -230,6 +231,9 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &action, nullptr);
     sigaction(SIGTERM, &action, nullptr);
     PltrDrawingStatusServer drawing_status;
+    PltrBluetoothDrawingServer bluetooth_drawing;
+    if (!pairing_mode && !bluetooth_drawing.bind())
+        std::fputs("Bluetooth raw drawing bridge unavailable; TCP remains available\n", stderr);
     // The pairing invocation is a separate short-lived process; the installed
     // unit runs "serve", and only that instance publishes the status name.
     if (!pairing_mode) publish_drawing_status(drawing_status, store, bound);
@@ -285,9 +289,9 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        pollfd fds[3] = {{server, POLLIN, 0}, {signal_pipe[0], POLLIN, 0},
-                         {pad.fd, POLLIN, 0}};
-        const int ready = poll(fds, pad.fd >= 0 ? 3 : 2, 100);
+        pollfd fds[4] = {{server, POLLIN, 0}, {signal_pipe[0], POLLIN, 0},
+                         {pad.fd, POLLIN, 0}, {bluetooth_drawing.fd(), POLLIN, 0}};
+        const int ready = poll(fds, 4, 100);
         if (ready < 0 && errno == EINTR) continue;
         if (ready < 0 || fds[1].revents != 0) break;
         if (pad.fd >= 0 && fds[2].revents != 0) {
@@ -298,6 +302,30 @@ int main(int argc, char **argv) {
                 if (pltr_pad_read(&pad, monotonic_ms(), &key) < 0)
                     pltr_pad_close(&pad);
             }
+        }
+        if (fds[3].revents & POLLIN) {
+            const int bluetooth_client = bluetooth_drawing.accept();
+            if (bluetooth_client >= 0) {
+                // Keep one session/capture owner across TCP, Bluetooth and Setup.
+                // BLE does not open a physical pairing window.
+                if (pairing.stage == PLTR_PAIR_WINDOW) {
+                    publisher.setPairing(false);
+                    pltr_pairing_clear(&pairing);
+                    if (pltr_pairing_init(&pairing, &store,
+                          reinterpret_cast<const std::uint8_t *>("NUC"), 3) != 0) {
+                        close(bluetooth_client);
+                        break;
+                    }
+                }
+                pltr_pad_close(&pad);
+                pairing_lease.release();
+                std::fputs("Bluetooth raw drawing session starting\n", stderr);
+                (void)pltr_run_stream_session(bluetooth_client, store, signal_pipe[0], 1);
+                close(bluetooth_client);
+                std::fputs("Bluetooth raw drawing session ended\n", stderr);
+                if (!stopping) (void)pltr_pad_open(&pad, 0x056a, 0);
+            }
+            continue;
         }
         if (!(fds[0].revents & POLLIN)) continue;
         const int client = accept4(server, nullptr, nullptr, SOCK_CLOEXEC);

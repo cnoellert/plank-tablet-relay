@@ -46,8 +46,8 @@ int pltr_noise_write_first(PltrNoise *state, const uint8_t *payload, size_t size
 int pltr_noise_read_first(PltrNoise *state, const uint8_t *message, size_t size,
                           uint8_t client_static_key[32], uint8_t *payload,
                           size_t capacity, size_t *read);
-// approved_client_key must come from persistent pairing state. The response
-// is impossible until it equals the decrypted identity from message one.
+// approved_client_key comes from persistent pairing or a claimed, authenticated
+// Setup enrollment grant. It must equal the decrypted identity from message one.
 int pltr_noise_write_second(PltrNoise *state,
                             const uint8_t approved_client_key[32],
                             const uint8_t *payload, size_t size,

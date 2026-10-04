@@ -36,6 +36,10 @@ int pltr_noise_init(PltrNoise *state, PltrNoiseRole role,
                     const uint8_t private_key[32],
                     const uint8_t remote_static_key[32], uint8_t link_type);
 void pltr_noise_clear(PltrNoise *state);
+// Separate domain for a Setup-authorized enrollment proof. It cannot be
+// replayed as a drawing handshake; no caller-selected prologue is exposed.
+int pltr_noise_init_enrollment(PltrNoise *state, PltrNoiseRole role,
+    const uint8_t private_key[32], const uint8_t relay_public_key[32]);
 int pltr_noise_public_key(const uint8_t private_key[32], uint8_t public_key[32]);
 int pltr_noise_write_first(PltrNoise *state, const uint8_t *payload, size_t size,
                            uint8_t *out, size_t capacity, size_t *written);

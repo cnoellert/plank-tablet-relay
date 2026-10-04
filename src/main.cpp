@@ -1,5 +1,6 @@
 #include "capture_lease.hpp"
 #include "drawing_status_server.hpp"
+#include "drawing_enrollment.hpp"
 #include "identity.h"
 #include "pad.h"
 #include "pair_budget.h"
@@ -53,6 +54,9 @@ bool inspect_open(int fd, std::uint8_t &mode) {
     deadline = {0, 0};
     (void)setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
                       &deadline, sizeof(deadline));
+    if (size >= 5 && std::memcmp(record, "PLEN\1", 5) == 0) {
+        mode = 3; return true;
+    }
     PltrFrame frame{};
     if (size != static_cast<ssize_t>(sizeof(record)) ||
         pltr_decode_record(record, sizeof(record), PLTR_CLIENT_TO_RELAY,
@@ -231,6 +235,9 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &action, nullptr);
     sigaction(SIGTERM, &action, nullptr);
     PltrDrawingStatusServer drawing_status;
+    PltrDrawingEnrollment drawing_enrollment(store);
+    if (!pairing_mode && !drawing_enrollment.bind())
+        std::fputs("Drawing enrollment unavailable: local endpoint could not bind\n", stderr);
     PltrBluetoothDrawingServer bluetooth_drawing;
     if (!pairing_mode && !bluetooth_drawing.bind())
         std::fputs("Bluetooth raw drawing bridge unavailable; TCP remains available\n", stderr);
@@ -262,6 +269,7 @@ int main(int argc, char **argv) {
     while (!stopping) {
         const auto now = monotonic_ms();
         drawing_status.service(now);
+        drawing_enrollment.service(now);
         if (pltr_pairing_tick(&pairing, now) < 0) break;
         if (pairing.stage != PLTR_PAIR_WINDOW && publisher.pairing())
             publisher.setPairing(false);
@@ -356,6 +364,8 @@ int main(int argc, char **argv) {
                     break;
                 }
                 result = 0;
+            } else if (mode == 3 && !pairing_mode) {
+                (void)pltr_run_enrollment(client, store, drawing_enrollment, signal_pipe[0]);
             } else if (mode == 1 && !pairing_mode) {
                 if (pairing.stage == PLTR_PAIR_WINDOW) {
                     publisher.setPairing(false);

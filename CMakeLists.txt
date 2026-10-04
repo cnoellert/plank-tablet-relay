@@ -155,6 +155,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_compile_features(plank_relay_client_link PUBLIC c_std_11)
         target_link_libraries(plank_relay_client_link PUBLIC plank_relay_link)
 
+        add_library(plank_relay_client_enrollment STATIC src/client_enrollment.c)
+        target_include_directories(plank_relay_client_enrollment PUBLIC src)
+        target_link_libraries(plank_relay_client_enrollment PUBLIC plank_relay_noise)
+
+        add_library(plank_relay_drawing_enrollment STATIC src/drawing_enrollment.cpp)
+        target_include_directories(plank_relay_drawing_enrollment PUBLIC src)
+        target_compile_features(plank_relay_drawing_enrollment PUBLIC cxx_std_17)
+        target_link_libraries(plank_relay_drawing_enrollment PUBLIC plank_relay_identity)
+        add_executable(drawing_enrollment_test tests/drawing_enrollment_test.cpp)
+        target_link_libraries(drawing_enrollment_test PRIVATE plank_relay_drawing_enrollment plank_relay_client_enrollment Threads::Threads)
+        add_test(NAME drawing_enrollment_test COMMAND drawing_enrollment_test)
+        set_tests_properties(drawing_enrollment_test PROPERTIES TIMEOUT 20)
+
         add_library(plank_relay_client_pair STATIC src/client_pair.c)
         target_include_directories(plank_relay_client_pair PUBLIC src)
         target_compile_features(plank_relay_client_pair PUBLIC c_std_11)
@@ -238,7 +251,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_executable(plank-tablet-relay src/main.cpp src/dnssd.cpp)
         target_link_libraries(plank-tablet-relay PRIVATE
             plank_relay_tcp_session plank_relay_tcp_pair_session
-            plank_relay_pair_budget plank_relay_drawing_status_server
+            plank_relay_pair_budget plank_relay_drawing_status_server plank_relay_drawing_enrollment
             PkgConfig::SODIUM)
         if(AVAHI_FOUND)
             target_compile_definitions(plank-tablet-relay PRIVATE PLTR_HAS_AVAHI=1)

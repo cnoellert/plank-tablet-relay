@@ -1,6 +1,14 @@
 # Tablet setup app and PLANK connection boundary
 
-## Current boundary — Vision Client build 36
+## Current boundary
+
+The Setup-mediated enrollment candidate is documented in
+[Setup drawing enrollment](setup-drawing-enrollment.md). It adds explicit
+**Allow PLANK** approval through authenticated Setup, followed by the Client
+proving the drawing identity before saving its pin. Live acceptance is pending.
+The following build-36 checkpoint remains the prior handoff record.
+
+### Vision Client build 36 checkpoint
 
 Use a separate headset app to commission and manage the headless Relay box.
 Keep PLANK's tablet UI limited to choosing a configured Relay, establishing

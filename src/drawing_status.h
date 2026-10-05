@@ -74,6 +74,8 @@ int pltr_drawing_status_error(const char *text, char *out, size_t capacity);
 /* The only accepted request is {"op":"drawing-status","version":1}: exactly two
  * members, no others, no nesting. Returns 1 when accepted. */
 int pltr_drawing_status_check_request(const char *bytes, size_t length);
+/* V2 adds the independently bound Bluetooth drawing endpoint capability. */
+int pltr_drawing_status_request_version(const char *bytes, size_t length);
 
 #ifdef __cplusplus
 }

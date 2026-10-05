@@ -104,11 +104,11 @@ int listener(const char *address, std::uint16_t port, sockaddr_in *bound) {
 // lease.
 void publish_drawing_status(PltrDrawingStatusServer &status,
                            const PltrIdentityStore &store,
-                           const sockaddr_in &bound) {
+                           const sockaddr_in &bound, bool bluetooth_available) {
     char text[INET_ADDRSTRLEN] = {0};
     const std::uint16_t port = ntohs(bound.sin_port);
     if (inet_ntop(AF_INET, &bound.sin_addr, text, sizeof(text)) == nullptr ||
-        !status.publishListener(store.public_key, text, port)) {
+        !status.publishListener(store.public_key, text, port, bluetooth_available)) {
         std::fputs("Drawing handoff status unavailable: the drawing listener "
                    "address cannot be published\n", stderr);
     }
@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
         std::fputs("Bluetooth raw drawing bridge unavailable; TCP remains available\n", stderr);
     // The pairing invocation is a separate short-lived process; the installed
     // unit runs "serve", and only that instance publishes the status name.
-    if (!pairing_mode) publish_drawing_status(drawing_status, store, bound);
+    if (!pairing_mode) publish_drawing_status(drawing_status, store, bound, bluetooth_drawing.fd() >= 0);
     PltrDnsSd publisher(store.public_key, port);
     if (!publisher.start())
         std::fputs("Local Relay discovery unavailable; manual address still works\n", stderr);
@@ -328,7 +328,13 @@ int main(int argc, char **argv) {
                 pltr_pad_close(&pad);
                 pairing_lease.release();
                 std::fputs("Bluetooth raw drawing session starting\n", stderr);
-                (void)pltr_run_stream_session(bluetooth_client, store, signal_pipe[0], 1);
+                std::uint8_t mode = 0;
+                if (inspect_open(bluetooth_client, mode)) {
+                    if (mode == 3)
+                        (void)pltr_run_enrollment(bluetooth_client, store, drawing_enrollment, signal_pipe[0]);
+                    else if (mode == 1)
+                        (void)pltr_run_stream_session(bluetooth_client, store, signal_pipe[0], 1);
+                }
                 close(bluetooth_client);
                 std::fputs("Bluetooth raw drawing session ended\n", stderr);
                 if (!stopping) (void)pltr_pad_open(&pad, 0x056a, 0);

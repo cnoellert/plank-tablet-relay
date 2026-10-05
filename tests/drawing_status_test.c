@@ -535,6 +535,11 @@ int main(void) {
     invalid_bound_addresses_report_their_reason();
     mapped_and_scoped_literals_are_named();
     requests_are_exactly_the_one_operation();
+    const char *v2 = "{\"op\":\"drawing-status\",\"version\":2}\n";
+    check(pltr_drawing_status_request_version(v2, strlen(v2)) == 2, "V2 request is distinct");
+    check(!pltr_drawing_status_check_request(v2, strlen(v2)), "V1 validator remains frozen");
+    const char *bad_v2 = "{\"op\":\"drawing-status\",\"version\":2,\"version\":2}\n";
+    check(!pltr_drawing_status_request_version(bad_v2, strlen(bad_v2)), "V2 duplicate refused");
     malformed_reasons_are_never_serialized();
     free(fixture_bytes);
     free(manifest_bytes);

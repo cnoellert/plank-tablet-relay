@@ -45,7 +45,7 @@ public:
      * server answers with the unavailable reason instead. */
     bool publishListener(const std::uint8_t public_key[32],
                          const char *bound_address,
-                         std::uint16_t bound_port) noexcept;
+                         std::uint16_t bound_port, bool bluetooth_available = false) noexcept;
     void publishUnavailable(const char *reason) noexcept;
 
     /* One bind attempt, never per request and never retried. */
@@ -82,5 +82,7 @@ private:
     int listen_fd_ = -1;
     char response_[PLTR_DRAWING_STATUS_RESPONSE_MAX];
     std::size_t response_length_ = 0;
+    char response_v2_[PLTR_DRAWING_STATUS_RESPONSE_MAX];
+    std::size_t response_v2_length_ = 0;
     Connection connections_[PLTR_DRAWING_STATUS_BACKLOG];
 };

@@ -28,7 +28,7 @@ PltrDrawingStatusServer::~PltrDrawingStatusServer() { close(); }
 
 bool PltrDrawingStatusServer::publishListener(const std::uint8_t public_key[32],
                                              const char *bound_address,
-                                             std::uint16_t bound_port) noexcept {
+                                             std::uint16_t bound_port, bool bluetooth_available) noexcept {
     const int written = pltr_drawing_status_ready(public_key, bound_address,
                                                   bound_port, response_,
                                                   sizeof(response_));
@@ -39,7 +39,13 @@ bool PltrDrawingStatusServer::publishListener(const std::uint8_t public_key[32],
         return false;
     }
     response_length_ = static_cast<std::size_t>(written);
-    return true;
+    // V1 remains byte-identical. Both replies are snapshotted at startup.
+    const int v2 = std::snprintf(response_v2_, sizeof(response_v2_),
+        "{\"version\":2,\"bluetooth\":%s,%s", bluetooth_available ? "true" : "false",
+        response_ + std::strlen("{\"version\":1,"));
+    response_v2_length_ = v2 > 0 && static_cast<std::size_t>(v2) < sizeof(response_v2_) ?
+        static_cast<std::size_t>(v2) : 0;
+    return response_v2_length_ != 0;
 }
 
 void PltrDrawingStatusServer::publishUnavailable(const char *reason) noexcept {
@@ -49,9 +55,13 @@ void PltrDrawingStatusServer::publishUnavailable(const char *reason) noexcept {
         const int fallback = pltr_drawing_status_unavailable(
             "service.invalid", response_, sizeof(response_));
         response_length_ = fallback > 0 ? static_cast<std::size_t>(fallback) : 0;
+        std::memcpy(response_v2_, response_, response_length_);
+        response_v2_length_ = response_length_;
         return;
     }
     response_length_ = static_cast<std::size_t>(written);
+    std::memcpy(response_v2_, response_, response_length_);
+    response_v2_length_ = response_length_;
 }
 
 PltrDrawingStatusServer::BindResult PltrDrawingStatusServer::bind(
@@ -144,10 +154,12 @@ void PltrDrawingStatusServer::progress(Connection &connection,
             connection.reply_length = written > 0 ? static_cast<std::size_t>(written) : 0;
             connection.replying = true;
             if (connection.reply_length == 0) { drop(connection); return; }
-        } else if (pltr_drawing_status_check_request(connection.request,
-                                                     connection.received)) {
-            std::memcpy(connection.reply, response_, response_length_);
-            connection.reply_length = response_length_;
+        } else if (const int version = pltr_drawing_status_request_version(
+                       connection.request, connection.received)) {
+            const char *response = version == 2 ? response_v2_ : response_;
+            connection.reply_length = version == 2 ? response_v2_length_ : response_length_;
+            if (connection.reply_length == 0) { drop(connection); return; }
+            std::memcpy(connection.reply, response, connection.reply_length);
             connection.replying = true;
         } else {
             const int written = pltr_drawing_status_error(

@@ -222,9 +222,9 @@ static int read_plain_string(const char *bytes, size_t length, size_t *index,
     return 1;
 }
 
-int pltr_drawing_status_check_request(const char *bytes, size_t length) {
+int pltr_drawing_status_request_version(const char *bytes, size_t length) {
     size_t index = 0;
-    int seen_op = 0, seen_version = 0;
+    int seen_op = 0, seen_version = 0, version = 0;
     if (bytes == NULL || length < 2 || length > PLTR_DRAWING_STATUS_REQUEST_MAX)
         return 0;
     if (bytes[length - 1] == '\n') --length;
@@ -253,8 +253,8 @@ int pltr_drawing_status_check_request(const char *bytes, size_t length) {
             seen_op = 1;
         } else if (strcmp(name, "version") == 0) {
             if (seen_version) return 0;
-            if (index >= length || bytes[index] != '1') return 0;
-            ++index;
+            if (index >= length || (bytes[index] != '1' && bytes[index] != '2')) return 0;
+            version = bytes[index++] - '0';
             if (index < length && ((bytes[index] >= '0' && bytes[index] <= '9') ||
                                    bytes[index] == '.' || bytes[index] == 'e' ||
                                    bytes[index] == 'E'))
@@ -265,5 +265,9 @@ int pltr_drawing_status_check_request(const char *bytes, size_t length) {
         }
     }
     index = skip_space(bytes, length, index);
-    return index == length && seen_op && seen_version ? 1 : 0;
+    return index == length && seen_op && seen_version ? version : 0;
+}
+
+int pltr_drawing_status_check_request(const char *bytes, size_t length) {
+    return pltr_drawing_status_request_version(bytes, length) == 1;
 }

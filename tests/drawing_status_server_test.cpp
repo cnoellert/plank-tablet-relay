@@ -153,6 +153,13 @@ void a_bound_name_answers_the_one_operation() {
           reply.find("/var/lib") == std::string::npos,
           "the response carries no private key, allowlist or path");
     check(reply.size() <= 4096, "the response is within its bound");
+    const std::string v2_request = "{\"op\":\"drawing-status\",\"version\":2}\n";
+    const auto before = exchange(server, policy.name, v2_request, &connected);
+    check(before.find("\"version\":2,\"bluetooth\":false") == 1, "unbound Bluetooth is not advertised");
+    check(server.publishListener(kPublicKey, "0.0.0.0", 28990, true), "Bluetooth capability snapshots");
+    const auto after = exchange(server, policy.name, v2_request, &connected);
+    check(after.find("\"version\":2,\"bluetooth\":true") == 1, "bound Bluetooth is advertised in V2");
+    check(exchange(server, policy.name, kRequest, &connected) == reply, "V1 response is byte-identical");
 }
 
 void a_refused_peer_gets_no_reply() {

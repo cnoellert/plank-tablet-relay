@@ -181,3 +181,6 @@ not a claim that the CFRG draft defines those tags.
 
 Licensed under GPL-3.0-or-later, consistent with the PLANK Client worker that
 will be adapted here.
+
+Registered Relay transport selection is specified in
+[Registered Relay drawing connections](docs/registered-relay-transports.md).

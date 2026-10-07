@@ -26,8 +26,9 @@ static std::uint64_t monotonic_us() {
 
 PltrWorkerBridge::PltrWorkerBridge(
     std::function<void()> wake,
-    LinuxRawWacomInput::GenerationProvider generation_provider)
-    : wake_(std::move(wake)) {
+    LinuxRawWacomInput::GenerationProvider generation_provider,
+    DevicePreflight device_preflight)
+    : wake_(std::move(wake)), device_preflight_(std::move(device_preflight)) {
     worker_ = std::make_unique<LinuxRawWacomInput>(
         [this](const unsigned char *bytes, std::size_t size) {
             return enqueue(bytes, size);
@@ -86,6 +87,18 @@ bool PltrWorkerBridge::enqueue(const std::uint8_t *bytes, std::size_t size) {
         size > PLTR_MAX_PAYLOAD_SIZE - 8) {
         markFailed();
         return false;
+    }
+    if (le16(bytes + 6) == PLANK_RAW_HID_DEVICE) {
+        if (size != sizeof(PLANK_RAW_HID_WIRE_HEADER) +
+                    sizeof(PLANK_RAW_HID_DEVICE_MESSAGE)) return false;
+        const std::uint8_t *device = bytes + sizeof(PLANK_RAW_HID_WIRE_HEADER);
+        if (!device_preflight_ ||
+            !device_preflight_(le16(device + 2), le32(device + 4),
+                               le32(device + 8), le16(device))) {
+            std::fputs("Wacom warning: local Wacom nodes changed or a matching "
+                       "node is unreadable; refusing Host attachment\n", stderr);
+            return false;
+        }
     }
     const std::uint64_t captured = le16(bytes + 6) == PLANK_RAW_HID_INPUT ?
                                    monotonic_us() : 0;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../vendor/plank-client/linuxrawwacom.h"
+#include "wacom_preflight.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -29,9 +30,12 @@ struct PltrWorkerStatus {
 // thread only appends validated PLWH frames and wakes that thread.
 class PltrWorkerBridge {
 public:
+    using DevicePreflight = std::function<bool(std::uint16_t, std::uint32_t,
+                                                std::uint32_t, std::uint16_t)>;
     explicit PltrWorkerBridge(
         std::function<void()> wake,
-        LinuxRawWacomInput::GenerationProvider generation_provider = {});
+        LinuxRawWacomInput::GenerationProvider generation_provider = {},
+        DevicePreflight device_preflight = pltr_wacom_nodes_ready);
     ~PltrWorkerBridge();
     PltrWorkerBridge(const PltrWorkerBridge&) = delete;
     PltrWorkerBridge& operator=(const PltrWorkerBridge&) = delete;
@@ -57,6 +61,7 @@ private:
     PltrWorkerStatus status_;
     std::uint16_t generation_ = 0;
     std::function<void()> wake_;
+    DevicePreflight device_preflight_;
     std::unique_ptr<LinuxRawWacomInput> worker_;
     void markFailed();
 };

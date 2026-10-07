@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "requestID": "3f2a9c5e-1b4d-4a7f-8c62-0d9e5a71b3c4",
+  "displayName": "Studio Relay",
+  "managementIdentity": "c9a2bb1573de33196112f273d0f046d78093f41103b64f17ffcc3d2c3c054f0c",
+  "drawingIdentity": "b4805f947954ddad8645c4a87d1bead9bcd2aceb3cacfa133dcdf10f1048191c",
+  "drawingProtocol": {
+    "name": "pltr-raw-hid",
+    "version": 1,
+    "rawHID": 1,
+    "linkType": 2
+  },
+  "routes": [
+    {
+      "address": "192.0.2.10",
+      "port": 65536
+    }
+  ]
+}

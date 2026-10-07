@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "ok": true,
+  "supported": true,
+  "state": "ready",
+  "listener": {
+    "drawingProtocol": {
+      "name": "pltr-raw-hid",
+      "version": 1,
+      "rawHID": 1,
+      "linkType": 2
+    },
+    "boundAddress": "192.0.2.10",
+    "boundPort": 28990
+  }
+}

@@ -4,6 +4,11 @@
 #include <linux/input.h>
 
 int main(void) {
+    assert(pltr_pad_product_matches(0, 0x0357));
+    assert(pltr_pad_product_matches(0, 0x0360));
+    assert(!pltr_pad_product_matches(0, 0x0315));
+    assert(pltr_pad_product_matches(0x0357, 0x0357));
+    assert(!pltr_pad_product_matches(0x0357, 0x0360));
     PltrPad pad = {.fd = -1};
     uint8_t key;
     assert(pltr_pad_feed(&pad, BTN_0, 1, 100, &key) == 1 && key == 1);

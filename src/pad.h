@@ -14,9 +14,13 @@ typedef struct PltrPad {
     unsigned chord_active, chord_signal;
 } PltrPad;
 
-// Opens the matching Wacom Pad evdev node for reads only, without grabbing it.
-// The Relay must call this only while it owns the physical tablet.
+// Opens exactly one matching Wacom Pad evdev node for reads only, without
+// grabbing it. A zero product accepts the PTH-660's verified USB (0357) and
+// Bluetooth (0360) product IDs; multiple eligible Pads fail closed. The idle
+// reader is nonexclusive; a pairing window obtains the shared capture lease.
 int pltr_pad_open(PltrPad *pad, uint16_t vendor, uint16_t product);
+// Pure product policy for tests. 0 means the two verified PTH-660 identities.
+int pltr_pad_product_matches(uint16_t requested, uint16_t actual);
 void pltr_pad_close(PltrPad *pad);
 
 // Receive one input event, returning 1 for an ExpressKey down (key 1..8),

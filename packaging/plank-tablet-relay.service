@@ -1,7 +1,7 @@
 [Unit]
 Description=PLANK Wacom tablet Relay
-After=network-online.target systemd-udevd.service
-Wants=network-online.target
+After=network-online.target systemd-udevd.service avahi-daemon.service
+Wants=network-online.target avahi-daemon.service
 
 [Service]
 Type=simple

@@ -1,0 +1,23 @@
+{
+  "supported": true,
+  "state": "unavailable",
+  "descriptor": {
+    "version": 1,
+    "drawingIdentity": "b4805f947954ddad8645c4a87d1bead9bcd2aceb3cacfa133dcdf10f1048191c",
+    "drawingProtocol": {
+      "name": "pltr-raw-hid",
+      "version": 1,
+      "rawHID": 1,
+      "linkType": 2
+    },
+    "routes": [
+      {
+        "address": "192.0.2.10",
+        "port": 28990,
+        "interface": "eth0",
+        "kind": "wired"
+      }
+    ]
+  },
+  "reason": "service.absent"
+}

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "requestID": "7c1e40b8-2a93-4d16-9f05-6b8ad2e7415a",
+  "displayName": "Studio Relay",
+  "managementIdentity": "c9a2bb1573de33196112f273d0f046d78093f41103b64f17ffcc3d2c3c054f0c",
+  "drawingIdentity": "f490d12fcdb19b4c86c21f305ff4490f1fafe85d28134e0515f5f3c9be5543c4",
+  "drawingProtocol": {
+    "name": "pltr-raw-hid",
+    "version": 1,
+    "rawHID": 1,
+    "linkType": 2
+  },
+  "routes": [
+    {
+      "address": "192.0.2.10",
+      "port": 28990,
+      "interface": "eth0",
+      "kind": "wired"
+    },
+    {
+      "address": "198.51.100.20",
+      "port": 28990,
+      "interface": "wlan0",
+      "kind": "wireless"
+    }
+  ]
+}

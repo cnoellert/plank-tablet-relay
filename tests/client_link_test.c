@@ -47,19 +47,21 @@ static size_t to_client(PltrClientLink *client, const uint8_t *bytes,
     return total;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argv;
+    const uint8_t link_type = argc > 1 ? 1 : 2;
     assert(sodium_init() >= 0);
     uint8_t client_public[32], client_private[32];
     uint8_t relay_public[32], relay_private[32];
     crypto_box_keypair(client_public, client_private);
     crypto_box_keypair(relay_public, relay_private);
     PltrClientLink *client = pltr_client_link_create(client_private,
-                                                     relay_public, 2);
+                                                     relay_public, link_type);
     assert(client != NULL);
     assert(pltr_client_link_peer_version(client) == NULL);
     PltrLink relay;
     assert(pltr_link_init(&relay, PLTR_NOISE_RESPONDER, relay_private,
-                          NULL, approve, client_public, 2) == 0);
+                          NULL, approve, client_public, link_type) == 0);
     uint8_t start[256], relay_reply[256], client_reply[256];
     uint8_t unused[256], payload[64];
     size_t start_size, relay_size, client_size, unused_size, payload_size;

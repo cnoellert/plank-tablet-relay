@@ -190,6 +190,13 @@ int pltr_noise_init(PltrNoise *s, PltrNoiseRole role,
                               prologue, sizeof(prologue));
 }
 
+int pltr_noise_init_enrollment(PltrNoise *s, PltrNoiseRole role,
+    const uint8_t private_key[32], const uint8_t relay_public_key[32]) {
+    static const uint8_t prologue[] = "PLANK-DRAWING-ENROLLMENT/1";
+    return init_with_prologue(s, role, private_key, relay_public_key,
+                              prologue, sizeof(prologue) - 1);
+}
+
 #ifdef PLTR_NOISE_TESTING
 int pltr_noise_init_test(PltrNoise *s, PltrNoiseRole role,
                          const uint8_t private_key[32],

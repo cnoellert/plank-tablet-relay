@@ -13,6 +13,7 @@
 #include <sys/eventfd.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <utility>
 
 namespace {
 using Clock = std::chrono::steady_clock;
@@ -54,12 +55,13 @@ bool send_worker_status(PltrLink &link, int fd, const PltrWorkerStatus &current)
 }
 } // namespace
 
-int pltr_run_tcp_session(int socket_fd, PltrIdentityStore &store, int stop_fd) {
-    if (socket_fd < 0 || store.directory_fd < 0 ||
+int pltr_run_stream_session(int socket_fd, PltrIdentityStore &store, int stop_fd,
+                            unsigned link_type, std::string capture_lease_name) {
+    if ((link_type != 1 && link_type != 2) || socket_fd < 0 || store.directory_fd < 0 ||
         (stop_fd >= 0 && stop_fd == socket_fd)) return -1;
     PltrLink link{};
     if (pltr_link_init(&link, PLTR_NOISE_RESPONDER, store.private_key,
-                       nullptr, pltr_identity_store_approve, &store, 2) != 0)
+                       nullptr, pltr_identity_store_approve, &store, link_type) != 0)
         return -1;
     const int wake_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
     if (wake_fd < 0) {
@@ -76,7 +78,7 @@ int pltr_run_tcp_session(int socket_fd, PltrIdentityStore &store, int stop_fd) {
             std::uint16_t generation = 0;
             return pltr_identity_store_next_generation(&store, &generation) == 0 ?
                 generation : std::uint16_t{0};
-        });
+        }, std::move(capture_lease_name));
         auto last_receive = Clock::now();
         auto last_ping = last_receive;
         bool hello_seen = false;
@@ -181,4 +183,9 @@ int pltr_run_tcp_session(int socket_fd, PltrIdentityStore &store, int stop_fd) {
     close(wake_fd);
     pltr_link_clear(&link);
     return result;
+}
+
+int pltr_run_tcp_session(int fd, PltrIdentityStore &store, int stop_fd,
+                         std::string lease) {
+    return pltr_run_stream_session(fd, store, stop_fd, 2, std::move(lease));
 }

@@ -1,0 +1,1652 @@
+{
+  "revision": "plank-drawing-handoff-v1+r3",
+  "descriptor": "plank-drawing-handoff-v1",
+  "supersedes": "plank-drawing-handoff-v1+r2",
+  "generated": "2026-09-30",
+  "pinnedSources": {
+    "cnoellert/plank-tablet-relay": "e9e0e1cbe22d42839db3db1b5fd509823bdb51cf",
+    "cnoellert/plank-client": "1ab229ce4740b6b79ae367bef527d487c9e0827f",
+    "cnoellert/plank-avp-relay": "7b477b3c75d91fbde667e5b4df4c46a36ea15219 (branch codex/managed-capture-lease-onto-main)",
+    "cnoellert/plank-avp-relay upstream base": "812bae39bfa54c30f06961962e6ab51845cf3752",
+    "cnoellert/plank-avp-relay pre-rebase provenance": "5a915a7cc817b39c150e32975643ae94f9c25e78 (PR #1 head; history only, not current)",
+    "note": "Every managed file cited by the contract is byte-identical across the rebase and every line citation still resolves. The managed unit is unchanged, so the IPC design and its capability reasoning survive the rebase intact."
+  },
+  "canonicalRepository": "cnoellert/plank-tablet-relay",
+  "canonicalFixturePath": "tests/fixtures/plank-drawing-handoff-v1",
+  "mirrors": [
+    "cnoellert/plank-client: visionos-native/Tests/Fixtures/plank-drawing-handoff-v1",
+    "cnoellert/plank-avp-relay: tests/fixtures/plank-drawing-handoff-v1"
+  ],
+  "contract": {
+    "path": "docs/relay-drawing-handoff-contract.md",
+    "repository": "cnoellert/plank-tablet-relay",
+    "sha256": "1dce3dd079e26bc9d348d3fbea96e035c743e8ace390171862226c9a043545fc"
+  },
+  "reachabilityHarness": {
+    "path": "tests/local-status-reachability-proof.sh",
+    "repository": "cnoellert/plank-tablet-relay",
+    "sha256": "b5b3c643b54b65bd223468ed26a191be7a2b7b335c49424e7f11153eeea64fdb",
+    "executedOn": "Rocky Linux 9.7, systemd 252, x86_64 — Linux kernel and systemd behaviour evidence only",
+    "notExecutedOn": "Ubuntu Relay target (Ubuntu 26.04.1, systemd 259). Blocked: sudo requires interactive authentication, so no system-scope transient unit can be started and the condition under test cannot be reproduced. systemd-run --user is not a substitute.",
+    "remainingGate": "Ubuntu Relay target service qualification is OUTSTANDING and NOT completed. Run the harness unchanged there before promotion.",
+    "isolation": "Not registered with add_test, not in the default ctest set, not invoked by any build script. Hand-run only.",
+    "safety": "Every systemctl stop/reset-failed goes through one ownership-checked helper that refuses any unit not in this invocation's created registry. Cleanup verification FAILS CLOSED: a unit query that does not succeed is UNVERIFIED, never clean, and both UNVERIFIED and LEFTOVERS exit non-zero. Cleanup and verification commands are bounded. PROOF_STEP_TIMEOUT is validated to a positive integer in 5..600 (0 is refused because `timeout 0` removes the bound). An overridden abstract name must still contain the run identifier. The systemd-created RuntimeDirectory path is tracked and verified gone. EVERY transient unit is given an explicit --unit= name carrying the run id and is tracked; an ambiguous launch (non-zero or timed-out systemd-run, which can fire after systemd already created the unit) is reconciled into ownership and stopped only through the same helper, and a failed reconciliation is UNVERIFIED. The is-active, journalctl and MainPID checks are bounded and status-checked, so a failed journal read never reads as \"no bind\" and a failed systemctl show never reads as \"no MainPID\". Signal and early-refusal exits report cleanup verification for whatever they created."
+  },
+  "entryPoints": {
+    "localMetadata": {
+      "direction": "raw drawing service -> managed service, local abstract AF_UNIX socket",
+      "envelopeRequired": [
+        "version",
+        "ok",
+        "supported",
+        "state"
+      ],
+      "envelopeConditional": {
+        "listener": "state == ready",
+        "reason": "state == unavailable"
+      },
+      "listenerRequired": [
+        "drawingIdentity",
+        "drawingProtocol",
+        "boundAddress",
+        "boundPort"
+      ],
+      "forbidden": [
+        "routes",
+        "requestID",
+        "displayName",
+        "managementIdentity"
+      ],
+      "note": "Wildcard 0.0.0.0 and loopback 127.0.0.0/8 are PERMITTED here and only here."
+    },
+    "statusDescriptor": {
+      "direction": "managed service -> Setup, inside the authenticated status response",
+      "wrapperRequired": [
+        "supported",
+        "state"
+      ],
+      "wrapperConditional": {
+        "descriptor": "state == ready",
+        "reason": "state == unavailable"
+      },
+      "descriptorRequired": [
+        "version",
+        "drawingIdentity",
+        "drawingProtocol",
+        "routes"
+      ],
+      "descriptorOptional": [],
+      "forbidden": [
+        "requestID",
+        "displayName",
+        "managementIdentity"
+      ],
+      "note": "requestID, displayName and managementIdentity are FORBIDDEN and are never required. Wildcard and loopback can never appear in routes here."
+    },
+    "appLink": {
+      "direction": "Setup -> PLANK, through the registered app link",
+      "required": [
+        "version",
+        "requestID",
+        "displayName",
+        "managementIdentity",
+        "drawingIdentity",
+        "drawingProtocol",
+        "routes"
+      ],
+      "optional": [],
+      "forbidden": [
+        "anything else"
+      ]
+    }
+  },
+  "appLink": {
+    "scheme": "plank-vision",
+    "host": "handoff",
+    "path": "/v1",
+    "parameter": "d",
+    "payloadEncoding": "base64url-unpadded-canonical",
+    "maxUrlBytes": 5490,
+    "maxEncodedCharacters": 5462,
+    "maxDecodedBytes": 4096,
+    "minDecodedBytes": 2,
+    "canonicalExample": {
+      "url": "link/valid/known-identity.url",
+      "json": "link/valid/known-identity.json",
+      "jsonBytes": 650,
+      "decodedPayloadBytes": 506,
+      "encodedCharacters": 675,
+      "note": "The .url and .json match SEMANTICALLY, not byte-for-byte. The .json is pretty-printed at 650 bytes; the payload decoded from the .url is 506 bytes of compact JSON. Compare PARSED VALUES, never file lengths or raw bytes. The 4096-byte limit applies to the decoded compact payload."
+    }
+  },
+  "localIPC": {
+    "transport": "AF_UNIX SOCK_STREAM, abstract address",
+    "address": "\\0plank-tablet-drawing-status-v1",
+    "mustNotReuse": "\\0plank-tablet-capture-v1 (src/capture_lease.hpp:9)",
+    "unitChangeRequired": "none",
+    "peerCredentials": "two-way SO_PEERCRED: the server serves only uid 0 or its own euid, and the client verifies the server uid equals the raw service account before reading one byte",
+    "accountResolution": "owner of /var/lib/plank-tablet-relay, resolved at use, fail closed; never a hard-coded uid",
+    "requestBound": 256,
+    "responseBound": 4096,
+    "clientBudgetSeconds": 0.75,
+    "serverBudgetSeconds": 0.5
+  },
+  "addressFamilies": {
+    "accepted": [
+      "ipv4"
+    ],
+    "refused": [
+      "ipv6"
+    ],
+    "reason": "The raw drawing listener is AF_INET only (src/main.cpp creates an AF_INET socket and parses --bind with inet_pton(AF_INET, ...)). Version 1 does not introduce a new address family."
+  },
+  "syntheticIdentities": {
+    "note": "Each value is the SHA-256 of its ASCII label. No real key material is present.",
+    "values": {
+      "drawingKnown": {
+        "label": "plank-drawing-handoff-v1/synthetic/drawing/known",
+        "sha256": "b4805f947954ddad8645c4a87d1bead9bcd2aceb3cacfa133dcdf10f1048191c"
+      },
+      "drawingUnknown": {
+        "label": "plank-drawing-handoff-v1/synthetic/drawing/unknown",
+        "sha256": "f490d12fcdb19b4c86c21f305ff4490f1fafe85d28134e0515f5f3c9be5543c4"
+      },
+      "drawingMismatched": {
+        "label": "plank-drawing-handoff-v1/synthetic/drawing/mismatched",
+        "sha256": "6f830f05473e3b6d4654cce8a68af4a0d9c1f01e4701529d5f94eb4532f86b07"
+      },
+      "management": {
+        "label": "plank-drawing-handoff-v1/synthetic/management",
+        "sha256": "c9a2bb1573de33196112f273d0f046d78093f41103b64f17ffcc3d2c3c054f0c"
+      }
+    }
+  },
+  "reservedExamples": [
+    "192.0.2.0/24",
+    "198.51.100.0/24",
+    "203.0.113.0/24",
+    "2001:db8::/32",
+    "relay.example"
+  ],
+  "unhashedFiles": {
+    "README.md": "Byte-identical provenance and loading note in every mirror. Excluded from files because it records this manifest's own SHA-256, which cannot be hashed into the manifest that contains it."
+  },
+  "expectations": {
+    "accept": "The fixture is valid under its entry point and must be accepted.",
+    "other": "The single expected rejection or outcome identifier, from the first failing ordered check for that entry point in section 7 of the contract."
+  },
+  "migrationSchema": {
+    "legacyAccounts[]": [
+      "account",
+      "pinnedDrawingIdentity"
+    ],
+    "note": "The stored value is named pinnedDrawingIdentity, not key. It is a pinned PUBLIC drawing identity (a 32-byte Noise static public key of an already approved Relay), not secret material. The r2 name \"key\" was inaccurate and also tripped the repository publication guard generic-api-key rule; the rename is the substantive fix, with no rule disabled or exempted."
+  },
+  "r3Corrections": {
+    "production server authorization": "uid 0 only; any test credential policy is explicitly injected and unreachable from production configuration (contract 8.3). Agrees with measured result C.",
+    "account resolution": "resolve the packaged raw service account BY NAME (plank-relay); directory ownership is corroboration only, symlinks rejected, fail closed (contract 8.3a).",
+    "harness safety": "unique per-run identifiers, exclusive creation, validated overrides, cleanup restricted to created resources, INT/TERM handling, bounded steps, verified cleanup affecting exit status (contract 8.5).",
+    "decisive assertions": "C requires exit status AND zero bytes; D requires a nonzero squatter uid distinct from the expected uid; D2 requires EADDRINUSE and appears in the summary; E checks the probe exit status; a failed server start is INVALID, never a silent pass.",
+    "non-object descriptor and listener": "status.descriptor.type and metadata.envelope.listener.type, checked before any member-level reason.",
+    "name-collision outcome": "a name held by the wrong uid is service.peerUnverified, not service.absent; only an unbound name is service.absent.",
+    "status duplicate detection": "must run over the ORIGINAL response bytes, because the tolerant envelope decode collapses duplicates first."
+  },
+  "r2NewRules": {
+    "encoding.nonCanonical": "link/invalid/encoded-noncanonical-2char.url, link/invalid/encoded-noncanonical-3char.url",
+    "payload.duplicateMember (raw-byte scan, nested and escaped)": "link/invalid/payload-duplicate-member.json, link/invalid/payload-duplicate-member-nested.json, link/invalid/payload-duplicate-member-escaped.json, link/invalid/payload-duplicate-member-escaped-nested.json, with the acceptance control link/valid/sibling-members-not-duplicate.json",
+    "privileged version ordering": "link/invalid/version-missing-with-unknown-member.json, link/invalid/version-unsupported-with-unknown-member.json, local/invalid/envelope-version-wrong-with-unknown-member.json",
+    "separated entry points": "status/invalid/with-request-id.json, status/invalid/with-display-name.json, status/invalid/with-management-identity.json, local/valid/wildcard.json, local/valid/loopback.json, local/invalid/listener-has-routes.json",
+    "note": "Every consumer MUST apply identical acceptance and rejection behaviour for all of these. A consumer that accepts a fixture marked as a rejection is non-conformant."
+  },
+  "scenarios": [
+    {
+      "name": "duplicate-request",
+      "description": "Feed in order. The second link carries the same requestID and must be deduplicated without a second confirmation or connection attempt, and without being treated as proof of trust.",
+      "steps": [
+        {
+          "file": "link/valid/known-identity.url",
+          "expect": "accept"
+        },
+        {
+          "file": "link/trust/replayed-request.url",
+          "expect": "requestID.duplicate"
+        }
+      ]
+    },
+    {
+      "name": "active-desktop-session",
+      "description": "Deliver the canonical link while a PLANK desktop session is active. The handoff is declined with an offer to use it after disconnect. Never interrupt a stroke.",
+      "steps": [
+        {
+          "file": "link/valid/known-identity.url",
+          "expect": "trust.sessionActive"
+        }
+      ]
+    },
+    {
+      "name": "unknown-identity-approval",
+      "description": "A descriptor that parses but names a drawing identity with no saved pin must reach PLANK's existing explicit physical drawing-approval flow and must never be auto-approved.",
+      "steps": [
+        {
+          "file": "link/trust/unknown-drawing-identity.url",
+          "expect": "trust.unknownDrawingIdentity"
+        }
+      ]
+    },
+    {
+      "name": "peer-credential-squat",
+      "description": "An unprivileged local process binds the abstract status name before the raw service. The managed client MUST verify the server uid and refuse. Proven on Rocky 9.7 by tests/local-status-reachability-proof.sh result D.",
+      "steps": [
+        {
+          "file": "status/valid/unavailable-peer-unverified.json",
+          "expect": "accept",
+          "note": "This is the managed status the refusal must produce."
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "handoffReady": "Descriptor present and usable.",
+    "drawingUnavailable": "Relay answered but the drawing service is missing or not ready: service.absent, service.busy, service.invalid, service.peerUnverified, listener.loopbackOnly, listener.noUsableAddress, response.tooLarge.",
+    "handoffUnsupported": "Authorization or protocol error, or a relay too old to report the field: relay.tooOld, authorization.required, authorization.failed, protocol.error."
+  },
+  "migrationOutcomes": {
+    "migration.clean": "Every legacy account mapping to one identity-indexed record holds the same 32-byte key. Create the record; delete and overwrite nothing.",
+    "migration.pinConflict": "Legacy accounts mapping to one identity-indexed record hold different 32-byte keys. Surface an explicit conflict state and write nothing."
+  },
+  "testFlags": {
+    "note": "Assertions must survive optimization. Never bare assert: C assert is removed by NDEBUG under CMake Release/RelWithDebInfo, and Swift assert is removed by -O. Both were measured. ONE negative control PER HARNESS, not one per revision.",
+    "raw-relay-c-ctest": "cmake -S . -B <build>   # no CMAKE_BUILD_TYPE, or Debug",
+    "managed-python": "python3 tests/<name>.py   # never python3 -O; prefer unittest asserts",
+    "setup-apple-ctest": "scripts/build-tablet-setup.sh macos   # Xcode Debug, ctest -C Debug",
+    "client-apple-swiftc": "swiftc -Onone -DPLANK_TABLET_RELAY <Sources...> visionos-native/Tests/<Name>Tests.swift -o <out>"
+  },
+  "files": {
+    "conversion/bound-link-local.json": {
+      "sha256": "db95395c88257a872c7067dd9c92b3b1d629a96cda808679967d113a6910d816",
+      "bytes": 447,
+      "entryPoint": "conversion",
+      "expect": "listener.noUsableAddress",
+      "note": "A legal 169.254.0.0/16 bind that is a refused route class. Accepted as metadata, refused at conversion."
+    },
+    "conversion/bound-literal.json": {
+      "sha256": "c69b8da1352baa4039af0206dcf028783204662273bc09c663b02dd71af68f57",
+      "bytes": 519,
+      "entryPoint": "conversion",
+      "expect": "conversion.ok",
+      "note": "A bound unicast literal becomes exactly one route. The host inventory is irrelevant: the listener answers on one address only."
+    },
+    "conversion/loopback-only.json": {
+      "sha256": "2a2c04933df36f583239ff764734b97de1d3769026308e1070229dec90714d7f",
+      "bytes": 460,
+      "entryPoint": "conversion",
+      "expect": "listener.loopbackOnly",
+      "note": "Bound to the UNCONFIGURED DEFAULT from the unit Environment, which is what a relay that has not yet been configured for headset access yields. The drawing service has no local-network route, so the drawing endpoint is unavailable with an actionable reason, not an error. The host having usable addresses does NOT rescue a loopback bind."
+    },
+    "conversion/no-usable-address.json": {
+      "sha256": "a354b8906088fb58a809ca1538aa0e2b48646ef1d347643ab861b85f16754893",
+      "bytes": 478,
+      "entryPoint": "conversion",
+      "expect": "listener.noUsableAddress",
+      "note": "Wildcard bind, but nothing in the inventory survives validation."
+    },
+    "conversion/wildcard-expansion-caps-at-eight.json": {
+      "sha256": "10f54ee256b2a2abed1663468945ca0e0e021a48242852ba2e6c73ae662ce23b",
+      "bytes": 1142,
+      "entryPoint": "conversion",
+      "expect": "conversion.ok",
+      "note": "Twelve usable addresses cap at eight, in inventory order."
+    },
+    "conversion/wildcard-expansion-drops-refused.json": {
+      "sha256": "2abe58b1046bec4fdea7abfbf875225cdc6e4966451fdcb14bf479effb6f3ff9",
+      "bytes": 723,
+      "entryPoint": "conversion",
+      "expect": "conversion.ok",
+      "note": "Expansion MUST drop every refused class and still succeed with the remainder: loopback, link-local, the unspecified address, multicast, broadcast, an IPv6 literal and a duplicate are all removed, leaving two routes. This is the usable_addresses behaviour already at tools/avp_relay/network_routes.py:10-28."
+    },
+    "conversion/wildcard-expansion.json": {
+      "sha256": "174512c519dcaecea60b9a73b9309c6e6b6c6c114ce53bf027f765f7bd7caa30",
+      "bytes": 584,
+      "entryPoint": "conversion",
+      "expect": "conversion.ok",
+      "note": "PRIMARY PRODUCTION PATH. A 0.0.0.0 bind expands to the usable IPv4 interface addresses, each paired with the listener port. The installed development Relay is bound this way, so this is the common case, not an edge case. The wildcard itself never appears in the descriptor."
+    },
+    "link/invalid/display-name-blank.json": {
+      "sha256": "4044ca083cbdd0d6a9eba47d58a3cad884316fd10c26e41708f951650063a9e6",
+      "bytes": 642,
+      "entryPoint": "appLink",
+      "expect": "displayName.invalid",
+      "note": "displayName is only white space."
+    },
+    "link/invalid/display-name-control.json": {
+      "sha256": "ecebe2666c6b1bb1da93c64ea5151cb386870b4ba14458dc419e1e4eb6934b4a",
+      "bytes": 655,
+      "entryPoint": "appLink",
+      "expect": "displayName.invalid",
+      "note": "Contains a C0 control code point."
+    },
+    "link/invalid/display-name-empty.json": {
+      "sha256": "ac5cb64ea00ef8df133fad5aa180ed4800677f941d6f761e78b160f389399965",
+      "bytes": 638,
+      "entryPoint": "appLink",
+      "expect": "displayName.invalid",
+      "note": "displayName is empty."
+    },
+    "link/invalid/display-name-too-long.json": {
+      "sha256": "76beead16e2c6c0b43619d0c1e1cbc5089cbc15e4701cdc666ab643342a558cd",
+      "bytes": 703,
+      "entryPoint": "appLink",
+      "expect": "displayName.invalid",
+      "note": "65 UTF-8 bytes, one over the bound."
+    },
+    "link/invalid/display-name-wrong-type.json": {
+      "sha256": "b028f54e966798a7136dd4484b65e52352a4792d7244e01d45d93bafd3d6c41e",
+      "bytes": 660,
+      "entryPoint": "appLink",
+      "expect": "displayName.type",
+      "note": "displayName is an array."
+    },
+    "link/invalid/drawing-identity-base64.json": {
+      "sha256": "4ed45bcbaa66135da0d34061e678dc6df9cb24c885ed8f1110b069c4101fd9ea",
+      "bytes": 630,
+      "entryPoint": "appLink",
+      "expect": "drawingIdentity.invalid",
+      "note": "Base64 instead of lowercase hexadecimal. Identities are hexadecimal in every surface."
+    },
+    "link/invalid/drawing-identity-equals-management.json": {
+      "sha256": "ba10384928bf12877c2edec748ef0c28f749e7f8aba32f664ade08d37331062b",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "drawingIdentity.collidesWithManagement",
+      "note": "The management identity is presented where the drawing identity belongs."
+    },
+    "link/invalid/drawing-identity-long.json": {
+      "sha256": "d7ed861c1566b8b9d40d805a6a11477ab793fd39156406bdc672fc43eda6b152",
+      "bytes": 652,
+      "entryPoint": "appLink",
+      "expect": "drawingIdentity.invalid",
+      "note": "66 hexadecimal characters."
+    },
+    "link/invalid/drawing-identity-uppercase.json": {
+      "sha256": "b2eb4d57a037a6fdc46a5684e204c298781f497fc4c23bd776e7868fb20726c0",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "drawingIdentity.invalid",
+      "note": "Uppercase hexadecimal."
+    },
+    "link/invalid/drawing-identity-wrong-type.json": {
+      "sha256": "c375f19e230060a3624c2773c7afd53928fab5e32cf10207520dec2b47d83af4",
+      "bytes": 667,
+      "entryPoint": "appLink",
+      "expect": "drawingIdentity.type",
+      "note": "drawingIdentity is an object."
+    },
+    "link/invalid/encoded-bad-length.url": {
+      "sha256": "2686a0340e2c40e83651a8be75f78fa0a110753b99d32763d9fff20c9a067188",
+      "bytes": 34,
+      "entryPoint": "appLink",
+      "expect": "encoding.length",
+      "note": "Length 5, which is 1 modulo 4; no unpadded base64url string has that length."
+    },
+    "link/invalid/encoded-noncanonical-2char.url": {
+      "sha256": "83821d441530723fe7d9bc87a9262e36055b36052c283f91403741203dc6b9b4",
+      "bytes": 707,
+      "entryPoint": "appLink",
+      "expect": "encoding.nonCanonical",
+      "note": "Final quantum of 2 characters with nonzero unused pad bits. A permissive decoder returns the correct bytes (measured: Python base64.urlsafe_b64decode does), so the only reliable check is re-encoding the decoded bytes and comparing to the original d value."
+    },
+    "link/invalid/encoded-noncanonical-3char.url": {
+      "sha256": "2a6fc1e3b9f0ccb93f41d222c45086ea865bbbdb65b47e93e7ff9760c2e5df15",
+      "bytes": 704,
+      "entryPoint": "appLink",
+      "expect": "encoding.nonCanonical",
+      "note": "Final quantum of 3 characters with nonzero unused pad bits. A permissive decoder returns the correct bytes (measured: Python base64.urlsafe_b64decode does), so the only reliable check is re-encoding the decoded bytes and comparing to the original d value."
+    },
+    "link/invalid/encoded-not-base64.url": {
+      "sha256": "26d85a669fd810fadcaf7717fff84bfd24ae3091c2c4e540dda24e865e02644b",
+      "bytes": 36,
+      "entryPoint": "appLink",
+      "expect": "encoding.alphabet",
+      "note": "A character outside the base64url alphabet."
+    },
+    "link/invalid/encoded-padded.url": {
+      "sha256": "483ad5b93d50e04adf7eb7fb43a857109b6a67f702c66f0efb731de043a489c0",
+      "bytes": 37,
+      "entryPoint": "appLink",
+      "expect": "encoding.alphabet",
+      "note": "Padding characters are present."
+    },
+    "link/invalid/encoded-percent-escape.url": {
+      "sha256": "167319595ee4b8a7736ce677d6b4440393942227c89bc293222a8e61d947ac65",
+      "bytes": 36,
+      "entryPoint": "appLink",
+      "expect": "encoding.alphabet",
+      "note": "A percent-escape inside the d value. There is nothing legal to escape."
+    },
+    "link/invalid/encoded-standard-base64.url": {
+      "sha256": "f1768c0b9f234ed2b15e749620252d69de27190a270d75c0a9a27330cc594124",
+      "bytes": 37,
+      "entryPoint": "appLink",
+      "expect": "encoding.alphabet",
+      "note": "Standard base64 alphabet and padding instead of unpadded base64url."
+    },
+    "link/invalid/management-identity-non-hex.json": {
+      "sha256": "8fcf4dba8e891a9da84505d6e2610edfbd8f7082eb8c30555625f5cdd2d360b7",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "managementIdentity.invalid",
+      "note": "A character outside [0-9a-f]."
+    },
+    "link/invalid/management-identity-short.json": {
+      "sha256": "a37d6414c9533f9a27f6877617e466b87b0bd3e2ee7345ea8b89efe58302e684",
+      "bytes": 649,
+      "entryPoint": "appLink",
+      "expect": "managementIdentity.invalid",
+      "note": "63 hexadecimal characters."
+    },
+    "link/invalid/management-identity-uppercase.json": {
+      "sha256": "37d5e120b6fe5b9c5d0a9cc07dc5e4a60798077904d753bb2d846360357bb559",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "managementIdentity.invalid",
+      "note": "Uppercase hexadecimal."
+    },
+    "link/invalid/management-identity-wrong-type.json": {
+      "sha256": "44e1cc5fc873dbca3f82cbee9109b479ede9978e78dffd88249f35706eea7716",
+      "bytes": 588,
+      "entryPoint": "appLink",
+      "expect": "managementIdentity.type",
+      "note": "managementIdentity is null."
+    },
+    "link/invalid/missing-displayName.json": {
+      "sha256": "aa7d37de20fc315f54af473a68fc3d565bc5a37613901bb94f64791176553751",
+      "bytes": 617,
+      "entryPoint": "appLink",
+      "expect": "displayName.missing",
+      "note": "displayName is absent."
+    },
+    "link/invalid/missing-drawingIdentity.json": {
+      "sha256": "39f03f6479f991ba622d9951eece2dbfe91b338685bd8f1c1b1e4e746c96cb18",
+      "bytes": 561,
+      "entryPoint": "appLink",
+      "expect": "drawingIdentity.missing",
+      "note": "drawingIdentity is absent."
+    },
+    "link/invalid/missing-drawingProtocol.json": {
+      "sha256": "8aba10e6f3036407dda4b9238b7b4e5727c653a6bc1d7a6d901ec3d6b9aaa006",
+      "bytes": 541,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.missing",
+      "note": "drawingProtocol is absent."
+    },
+    "link/invalid/missing-managementIdentity.json": {
+      "sha256": "a6b5efb0af82f262a59a019d3a8e120ff53e5cf68c527c733e6010823cf0344b",
+      "bytes": 558,
+      "entryPoint": "appLink",
+      "expect": "managementIdentity.missing",
+      "note": "managementIdentity is absent."
+    },
+    "link/invalid/missing-requestID.json": {
+      "sha256": "1ea6076c38ccae79dc0b1893e58527387fa1ce451f493c37e39b260c4e231543",
+      "bytes": 595,
+      "entryPoint": "appLink",
+      "expect": "requestID.missing",
+      "note": "requestID is absent."
+    },
+    "link/invalid/missing-routes.json": {
+      "sha256": "2aaecd32da109152cae6ba0b0023ada1e394c48fd276281ff53b8c4f122ec513",
+      "bytes": 397,
+      "entryPoint": "appLink",
+      "expect": "routes.missing",
+      "note": "routes is absent."
+    },
+    "link/invalid/payload-bad-json.json": {
+      "sha256": "2261e01c00fb2af784e101262991037b5e4569a8d80cab771564aeded56be4ee",
+      "bytes": 26,
+      "entryPoint": "appLink",
+      "expect": "payload.json",
+      "note": "Truncated JSON."
+    },
+    "link/invalid/payload-duplicate-member-escaped-nested.json": {
+      "sha256": "ab96b45f8e2fd99ea3da16d68006757f6013957f079835f478de0d9093d3852b",
+      "bytes": 412,
+      "entryPoint": "appLink",
+      "expect": "payload.duplicateMember",
+      "note": "Escaped-equivalent duplicate inside a routes element: \"\\u0070ort\" and \"port\"."
+    },
+    "link/invalid/payload-duplicate-member-escaped.json": {
+      "sha256": "4d0c58d4af867380b8f72a1e7cdec8c3b6a5b24961edc17a7875260bb93adad1",
+      "bytes": 411,
+      "entryPoint": "appLink",
+      "expect": "payload.duplicateMember",
+      "note": "Escaped-equivalent duplicate at the top level: \"version\" and \"\\u0076ersion\" decode to the same member name. Measured: json.loads collapses them, so names must be compared after unescaping during a raw-byte scan."
+    },
+    "link/invalid/payload-duplicate-member-nested.json": {
+      "sha256": "8bb99ccb4ec3f518720b64abea9382ae19632986e17b61cd3631ba05c60d6eb1",
+      "bytes": 406,
+      "entryPoint": "appLink",
+      "expect": "payload.duplicateMember",
+      "note": "Nested duplicate inside drawingProtocol. The scan must cover every object at every depth, not only the top level."
+    },
+    "link/invalid/payload-duplicate-member.json": {
+      "sha256": "703fc65dc3b84c8fd4ec1f8de40949c8692c894c26e68f5677cd5540aca4d0ce",
+      "bytes": 406,
+      "entryPoint": "appLink",
+      "expect": "payload.duplicateMember",
+      "note": "The member name version appears twice at the top level."
+    },
+    "link/invalid/payload-not-object-string.json": {
+      "sha256": "05e300cbbe0b2782969a3acec59d814626fa7d578f28b57197c0fc37c75e5d5a",
+      "bytes": 27,
+      "entryPoint": "appLink",
+      "expect": "payload.notObject",
+      "note": "Top-level value is a string."
+    },
+    "link/invalid/payload-not-object.json": {
+      "sha256": "90b8113416394814334ba04942397fa21bc9474d974c33bc6cac9a09f47ac471",
+      "bytes": 16,
+      "entryPoint": "appLink",
+      "expect": "payload.notObject",
+      "note": "Top-level value is an array."
+    },
+    "link/invalid/payload-not-utf8.bin": {
+      "sha256": "6ece4bff85089fc76aeae7bc327666a098c6f9922d11108cd69c91217fc34313",
+      "bytes": 10,
+      "entryPoint": "appLink",
+      "expect": "payload.utf8",
+      "note": "A JSON-shaped payload containing bytes that are not well-formed UTF-8."
+    },
+    "link/invalid/payload-oversized.json": {
+      "sha256": "3112055ed1614fe05be8e8ed3a8372ad3b4c042727b7bb0cb3e89ea1fd9f9ccb",
+      "bytes": 4097,
+      "entryPoint": "appLink",
+      "expect": "payload.length",
+      "note": "Exactly 4097 decoded bytes, one over the limit. The object is otherwise a valid descriptor, so length is the only reason it fails."
+    },
+    "link/invalid/payload-too-short.url": {
+      "sha256": "3d5ac90e6702d57582730e3ce08856dfc72af397f7005487694eeeedde472b34",
+      "bytes": 31,
+      "entryPoint": "appLink",
+      "expect": "payload.length",
+      "note": "Decoded payload is 1 byte, below the 2-byte minimum."
+    },
+    "link/invalid/payload-trailing-content.json": {
+      "sha256": "adb6465cdf20be2445293f31a5c5272a116bdca86b836973cdbf3c816ad147ac",
+      "bytes": 28,
+      "entryPoint": "appLink",
+      "expect": "payload.json",
+      "note": "A second JSON value after the object."
+    },
+    "link/invalid/protocol-link-type-bluetooth.json": {
+      "sha256": "293efeec812ecb1cf2909cfe1287a3e10e43d7a8bc4fac004c1ea4e699cb136f",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.linkType",
+      "note": "Link type 1 is Bluetooth LE. A drawing handoff is TCP, the link type is bound into the Noise prologue, and version 1 adds no Bluetooth drawing transport to native PLANK."
+    },
+    "link/invalid/protocol-missing-member.json": {
+      "sha256": "35e4a5b29d52877c534edef29f197136d5a00c2187c4a777a65ee2cef18a5fb9",
+      "bytes": 631,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.linkType.missing",
+      "note": "drawingProtocol.linkType is absent."
+    },
+    "link/invalid/protocol-name-wrong.json": {
+      "sha256": "48ed1eaa17d6e24a7276581e2ea04878c52f0b2a2b43f50760ed7594da1aca9e",
+      "bytes": 653,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.name",
+      "note": "Unsupported protocol name."
+    },
+    "link/invalid/protocol-raw-hid-wrong.json": {
+      "sha256": "16b974fb59ebb6a8f9e11ae2288840e7bc009b144ad2f56ad94399585629b99a",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.rawHID",
+      "note": "rawHID 2. The wire value at src/link.c:74 is 1; the RAW_HID_V2 name in the source comment is not the value and must never be encoded as 2."
+    },
+    "link/invalid/protocol-unknown-member.json": {
+      "sha256": "1d6485380f3f61aa6e8f666fcd17974a3f2c27b37ed7bb3eee7e38477f79b02e",
+      "bytes": 673,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.unknownMember",
+      "note": "An unexpected member inside drawingProtocol."
+    },
+    "link/invalid/protocol-version-wrong.json": {
+      "sha256": "e9124432016050ef22bf78c6ac7b752c109d34240209ae72b319649bd2d07cf5",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.version",
+      "note": "Unsupported protocol version."
+    },
+    "link/invalid/protocol-wrong-type.json": {
+      "sha256": "ea5c2a9abb4d20260388d3b1a13abf059538c6dc763ed334eaedd0c769ffb994",
+      "bytes": 580,
+      "entryPoint": "appLink",
+      "expect": "drawingProtocol.type",
+      "note": "drawingProtocol is a string."
+    },
+    "link/invalid/request-id-braced.json": {
+      "sha256": "e3fa60942e5cb96eb02fa904d9623abdac42f5b21baa40ba10afc19dfd259270",
+      "bytes": 652,
+      "entryPoint": "appLink",
+      "expect": "requestID.invalid",
+      "note": "Braced UUID form."
+    },
+    "link/invalid/request-id-no-hyphens.json": {
+      "sha256": "936d2ce3d0e1fbe750f280a1cdd7527640c05f2f11279698f19f7f2c3c9a7f2a",
+      "bytes": 646,
+      "entryPoint": "appLink",
+      "expect": "requestID.invalid",
+      "note": "UUID without hyphens."
+    },
+    "link/invalid/request-id-uppercase.json": {
+      "sha256": "d9ba5a1295fe6124685ca9e8610f4e114d16432b03d672d90a5bf4e874d76a1f",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "requestID.invalid",
+      "note": "Uppercase UUID; only the lowercase canonical form is accepted."
+    },
+    "link/invalid/request-id-wrong-type.json": {
+      "sha256": "973e9f1f7bb8599fe29a154617a2a631d013f663981defd2ce77a181bda6b420",
+      "bytes": 613,
+      "entryPoint": "appLink",
+      "expect": "requestID.type",
+      "note": "requestID is a number."
+    },
+    "link/invalid/route-address-broadcast.json": {
+      "sha256": "29382b35f616a2595bf4408ce9c41ccd37b99ba432853a0d032ddba92659d612",
+      "bytes": 484,
+      "entryPoint": "appLink",
+      "expect": "route.address.broadcast",
+      "note": "The IPv4 broadcast address."
+    },
+    "link/invalid/route-address-empty.json": {
+      "sha256": "26ab8a339de561a892cc4524c2a03c6fed2cfa3cdb27702cb1771f15444c71bd",
+      "bytes": 469,
+      "entryPoint": "appLink",
+      "expect": "route.address.notLiteral",
+      "note": "Empty address."
+    },
+    "link/invalid/route-address-hostname.json": {
+      "sha256": "2448d9458d021f2123eb3b5fcb08eb0b47a87131614709711d0614f14c2279c7",
+      "bytes": 482,
+      "entryPoint": "appLink",
+      "expect": "route.address.notLiteral",
+      "note": "A host name. Resolving one is network activity and must not happen during validation."
+    },
+    "link/invalid/route-address-ipv6-global.json": {
+      "sha256": "b373af2602d05f96c8afa00b9c657c718dd85367cc99010c646445ddb100e51e",
+      "bytes": 480,
+      "entryPoint": "appLink",
+      "expect": "route.address.familyUnsupported",
+      "note": "A valid, canonical, otherwise-acceptable global IPv6 literal. Version 1 keeps the existing IPv4-only drawing transport: src/main.cpp creates an AF_INET socket and parses --bind with inet_pton(AF_INET, ...), so there is no IPv6 listener to reach."
+    },
+    "link/invalid/route-address-ipv6-mixed.json": {
+      "sha256": "d64b8267ec103e867197ae4d6d191c6358cec5c1a41f9004fe37577f50992263",
+      "bytes": 544,
+      "entryPoint": "appLink",
+      "expect": "route.address.familyUnsupported",
+      "note": "A route that fails validation rejects the whole descriptor; an unusable route is never silently dropped, even when an acceptable route precedes it."
+    },
+    "link/invalid/route-address-ipv6-unique-local.json": {
+      "sha256": "32e7da407631256ac37c006cbdf8478c0d807808793082a22d2fdb4b8a6f98c4",
+      "bytes": 476,
+      "entryPoint": "appLink",
+      "expect": "route.address.familyUnsupported",
+      "note": "A unique-local IPv6 literal; refused for the same reason."
+    },
+    "link/invalid/route-address-link-local-v4.json": {
+      "sha256": "ed5605f1eca35aeaefba38aafcd4eb3ff1b9c179bc76e79980491df890724d74",
+      "bytes": 482,
+      "entryPoint": "appLink",
+      "expect": "route.address.linkLocal",
+      "note": "IPv4 link-local."
+    },
+    "link/invalid/route-address-link-local-v6.json": {
+      "sha256": "3da1ab5db0ee42e28f989c31aef5a4472c8d0f63ff44be707c0204d8f9776a63",
+      "bytes": 476,
+      "entryPoint": "appLink",
+      "expect": "route.address.linkLocal",
+      "note": "IPv6 link-local."
+    },
+    "link/invalid/route-address-loopback-v4-net.json": {
+      "sha256": "5df31077d868653948557611effed2529ce27e6340c492abac1e6d49b2ad115b",
+      "bytes": 481,
+      "entryPoint": "appLink",
+      "expect": "route.address.loopback",
+      "note": "Inside 127.0.0.0/8."
+    },
+    "link/invalid/route-address-loopback-v4.json": {
+      "sha256": "b2a2d6b83f2519d2b2cedbfa02e13f96b1a5efb19c1997e654d377d33e103722",
+      "bytes": 478,
+      "entryPoint": "appLink",
+      "expect": "route.address.loopback",
+      "note": "IPv4 loopback. Legal as a BIND (local metadata) but never as a ROUTE."
+    },
+    "link/invalid/route-address-loopback-v6.json": {
+      "sha256": "7266095eb954d456e72d3d5821b3361693390b9b077381114a5886fff55a3471",
+      "bytes": 472,
+      "entryPoint": "appLink",
+      "expect": "route.address.loopback",
+      "note": "IPv6 loopback."
+    },
+    "link/invalid/route-address-mapped.json": {
+      "sha256": "d35461ab188a5ab54c6ef1f9b10041c111b12e687a62168f021e5118891e4f24",
+      "bytes": 486,
+      "entryPoint": "appLink",
+      "expect": "route.address.mapped",
+      "note": "IPv4-mapped IPv6. MEASURED DIVERGENCE: Python renders this as ::ffff:c000:20a and Swift as ::ffff:192.0.2.10, so a canonical round-trip would give different reasons. Contract 7.4a tests the 16 raw bytes for the mapped prefix BEFORE any round-trip, which is identical everywhere."
+    },
+    "link/invalid/route-address-missing.json": {
+      "sha256": "2664fc323a20f0d0070565194a0f4ee622f05e75fa7f7a9b48ae372ac7c2fb7f",
+      "bytes": 448,
+      "entryPoint": "appLink",
+      "expect": "route.address.missing",
+      "note": "address is absent."
+    },
+    "link/invalid/route-address-multicast-v4.json": {
+      "sha256": "53b6f6f81afc5eb771a363ae3fae2896904f784a5416885c9b758d49855e4d68",
+      "bytes": 478,
+      "entryPoint": "appLink",
+      "expect": "route.address.multicast",
+      "note": "IPv4 multicast."
+    },
+    "link/invalid/route-address-multicast-v6.json": {
+      "sha256": "520aa285442967d6ba4a47ba44634bb07c16614c1f5509ea394c52d415e518a9",
+      "bytes": 476,
+      "entryPoint": "appLink",
+      "expect": "route.address.multicast",
+      "note": "IPv6 multicast."
+    },
+    "link/invalid/route-address-non-canonical-v4.json": {
+      "sha256": "181dc2affec98a5b1ba157132ecddf99c6af612d38d2c11a35a5ddaa73ef9bbb",
+      "bytes": 484,
+      "entryPoint": "appLink",
+      "expect": "route.address.nonCanonical",
+      "note": "Leading zeros in a dotted quad. MEASURED DIVERGENCE: Python ipaddress REJECTS this outright while Swift IPv4Address ACCEPTS it and silently normalises to 192.0.2.10, so the reason would differ by platform. Contract 7.4a settles it with a pure-string dotted-quad grammar applied before any platform parser."
+    },
+    "link/invalid/route-address-non-canonical-v6-case.json": {
+      "sha256": "4b550548f7a73c57c59d3daac45e532870391dbacef6cf7b0906d8a4663c74c2",
+      "bytes": 480,
+      "entryPoint": "appLink",
+      "expect": "route.address.nonCanonical",
+      "note": "Uppercase IPv6 hexadecimal, caught by the pure-string uppercase test of contract 7.4a without consulting a parser."
+    },
+    "link/invalid/route-address-non-canonical-v6-expanded.json": {
+      "sha256": "a4b84b814752346dee69bbb0ac779435419555b7e707902416e2fb77be2cf1c9",
+      "bytes": 489,
+      "entryPoint": "appLink",
+      "expect": "route.address.nonCanonical",
+      "note": "Non-minimal IPv6 compression. Python and Swift agree here, so the canonical round-trip of contract 7.4a step 5 is sufficient."
+    },
+    "link/invalid/route-address-reserved.json": {
+      "sha256": "e493e112dc76777b3ae33f6585f7f12a52dc65529265f985fbab64c78e142d30",
+      "bytes": 478,
+      "entryPoint": "appLink",
+      "expect": "route.address.broadcast",
+      "note": "Reserved above the multicast range."
+    },
+    "link/invalid/route-address-scoped.json": {
+      "sha256": "9ba1d7e174ff0d880488f398e9a61880b9646a91cbbb14ad571cf34c86b8f465",
+      "bytes": 484,
+      "entryPoint": "appLink",
+      "expect": "route.address.scoped",
+      "note": "A zone identifier on an otherwise acceptable global IPv6 literal, so scoped is the only reason it fails."
+    },
+    "link/invalid/route-address-too-long.json": {
+      "sha256": "c15f232534630fd87c92f9cabc9e28aab4a496a3061784f8ede3446f08fd1ab0",
+      "bytes": 534,
+      "entryPoint": "appLink",
+      "expect": "route.address.tooLong",
+      "note": "65 UTF-8 bytes, one over the existing 64-byte bound."
+    },
+    "link/invalid/route-address-unspecified-v4-net.json": {
+      "sha256": "0b0052612da275596b21051f1bc91e0c5d907182d5f842d00b02792998d4d47a",
+      "bytes": 476,
+      "entryPoint": "appLink",
+      "expect": "route.address.unspecified",
+      "note": "Inside 0.0.0.0/8."
+    },
+    "link/invalid/route-address-unspecified-v4.json": {
+      "sha256": "b6a51c8e499516f159600a5b09e41776797b6324f0d75da86e2577016489dbd0",
+      "bytes": 476,
+      "entryPoint": "appLink",
+      "expect": "route.address.unspecified",
+      "note": "The IPv4 unspecified address. Legal as a BIND (local metadata) but never as a ROUTE."
+    },
+    "link/invalid/route-address-unspecified-v6.json": {
+      "sha256": "a025c6839a177d6575b568ac9b09252d93b2637bd340308eca151e03199f1268",
+      "bytes": 471,
+      "entryPoint": "appLink",
+      "expect": "route.address.unspecified",
+      "note": "The IPv6 unspecified address."
+    },
+    "link/invalid/route-address-with-port.json": {
+      "sha256": "dfc597b4ab2c426ccb6d2ab05771063be4450ea96aa8364d5a47dfd751a3b858",
+      "bytes": 485,
+      "entryPoint": "appLink",
+      "expect": "route.address.notLiteral",
+      "note": "An address:port pair in the address member."
+    },
+    "link/invalid/route-address-wrong-type.json": {
+      "sha256": "0e8e9fe78a72bfc694f183393fbb16d046ff6b5aa01edb71411e528503526072",
+      "bytes": 477,
+      "entryPoint": "appLink",
+      "expect": "route.address.type",
+      "note": "address is a number."
+    },
+    "link/invalid/route-interface-bad-characters.json": {
+      "sha256": "72a2c85437c7fa00f0f127f91b2aa9a9bd7a2805b6505f7baedfbabf8daba5c5",
+      "bytes": 507,
+      "entryPoint": "appLink",
+      "expect": "route.interface",
+      "note": "A space in the interface name."
+    },
+    "link/invalid/route-interface-empty.json": {
+      "sha256": "55dbafe3081cdf0c3366d1fcd3f751e657bd7cb7a4a9a9e8a5e91a218a3ad808",
+      "bytes": 502,
+      "entryPoint": "appLink",
+      "expect": "route.interface",
+      "note": "Empty interface name."
+    },
+    "link/invalid/route-interface-null.json": {
+      "sha256": "cfc07645ad43935c41468f9918aea3f8d5b51f18649dad2914288c8cd9418440",
+      "bytes": 504,
+      "entryPoint": "appLink",
+      "expect": "route.nullMember",
+      "note": "An optional member set to null. Absence is expressed by absence."
+    },
+    "link/invalid/route-interface-path.json": {
+      "sha256": "888f3f87ab1d741881faa6b16ddbb67c88218fd8b61a0773cc7d661cf3dcae37",
+      "bytes": 509,
+      "entryPoint": "appLink",
+      "expect": "route.interface",
+      "note": "Path separators in the interface name."
+    },
+    "link/invalid/route-interface-too-long.json": {
+      "sha256": "87f774fcab9ade33cdd18ac30207c6b1457ff00a5a3f6ba3bba389f46c111e5f",
+      "bytes": 518,
+      "entryPoint": "appLink",
+      "expect": "route.interface",
+      "note": "16 UTF-8 bytes; the bound is 15, which is IFNAMSIZ minus one."
+    },
+    "link/invalid/route-interface-wrong-type.json": {
+      "sha256": "9c46fddfaefdfcd689a0eb31d18c21db07f4a5f17af9a4049ffa23548ff3f842",
+      "bytes": 501,
+      "entryPoint": "appLink",
+      "expect": "route.interface",
+      "note": "interface is a number."
+    },
+    "link/invalid/route-kind-case.json": {
+      "sha256": "0885dc64d275e97e101d577a412eb42626a0ffb1e22d4fdcde82b2a44d40a988",
+      "bytes": 502,
+      "entryPoint": "appLink",
+      "expect": "route.kind",
+      "note": "kind is not lowercase."
+    },
+    "link/invalid/route-kind-null.json": {
+      "sha256": "86974ac1b7b9a58da70a8db3c076f5674fdd30c9c3fae896b528160f9898c839",
+      "bytes": 499,
+      "entryPoint": "appLink",
+      "expect": "route.nullMember",
+      "note": "kind set to null."
+    },
+    "link/invalid/route-kind-unknown.json": {
+      "sha256": "144c213ff8a16ea4f829805882e4981db7bcaf94df8563cd2d9da3ead0c7f531",
+      "bytes": 505,
+      "entryPoint": "appLink",
+      "expect": "route.kind",
+      "note": "kind outside the frozen set."
+    },
+    "link/invalid/route-port-65536.json": {
+      "sha256": "25f4c3c187560b5303945923a7a162f1ca2d880d43627d18ad2a9b52794476db",
+      "bytes": 479,
+      "entryPoint": "appLink",
+      "expect": "route.port",
+      "note": "Port 65536."
+    },
+    "link/invalid/route-port-missing.json": {
+      "sha256": "e60b13fc8fbd6bf460cc82256f9da1aee273e7c2d01112c5135d46a015f7e6d8",
+      "bytes": 458,
+      "entryPoint": "appLink",
+      "expect": "route.port.missing",
+      "note": "port is absent."
+    },
+    "link/invalid/route-port-negative.json": {
+      "sha256": "4aa8dce1f5ea009dc3b4b718d8900e11fe7a5676a7a902d3e5a51c24a0cee43d",
+      "bytes": 476,
+      "entryPoint": "appLink",
+      "expect": "route.port",
+      "note": "Negative port."
+    },
+    "link/invalid/route-port-non-integer.json": {
+      "sha256": "0af1e567f1dde7741f0a6a144397eb8b64eafaefe3d434ceba1f2e01e5295635",
+      "bytes": 481,
+      "entryPoint": "appLink",
+      "expect": "route.port",
+      "note": "Non-integral port."
+    },
+    "link/invalid/route-port-string.json": {
+      "sha256": "417110d7deaf7b0638fe447f39fbe4e7c9e4340d3955c443eb1172b60da3912f",
+      "bytes": 481,
+      "entryPoint": "appLink",
+      "expect": "route.port",
+      "note": "Port is a string."
+    },
+    "link/invalid/route-port-zero.json": {
+      "sha256": "9b30197d95968e1c27333843db7eca19144804fbea908fb66dab6a62669148f5",
+      "bytes": 475,
+      "entryPoint": "appLink",
+      "expect": "route.port",
+      "note": "Port 0."
+    },
+    "link/invalid/route-unknown-member-metric.json": {
+      "sha256": "bbbdc0e2628bb03ae5bdfae3d2e89ac0708dd4cc98c0f360d30a50d29b76bd43",
+      "bytes": 499,
+      "entryPoint": "appLink",
+      "expect": "route.unknownMember",
+      "note": "An unexpected route member."
+    },
+    "link/invalid/route-unknown-member.json": {
+      "sha256": "90d22279f87f42e4a2b3c139bc2101495b908c7fbae5478b3d41ac05fe3da0bf",
+      "bytes": 512,
+      "entryPoint": "appLink",
+      "expect": "route.unknownMember",
+      "note": "Forbidden interface metadata offered as an extra route member. Rejected by the unknown-member policy, which is what makes the forbidden-content rule checkable."
+    },
+    "link/invalid/route-wrong-type.json": {
+      "sha256": "5c4b000b63b2c28cf6090cab3dee5420008588aac43734cc819beb0b0c7773dc",
+      "bytes": 439,
+      "entryPoint": "appLink",
+      "expect": "route.type",
+      "note": "A route element is a string."
+    },
+    "link/invalid/routes-empty.json": {
+      "sha256": "ad3791fc7cb74de29548f222ab778c485e9065dc1eb93424fbb12600008b6d20",
+      "bytes": 413,
+      "entryPoint": "appLink",
+      "expect": "routes.count",
+      "note": "routes is empty."
+    },
+    "link/invalid/routes-too-many.json": {
+      "sha256": "a3820b1b7ab6991efe5cc654d7625946502b4f6fb7e8b522dd8e6242367b74cc",
+      "bytes": 991,
+      "entryPoint": "appLink",
+      "expect": "routes.count",
+      "note": "Nine routes, one over the bound. Counted before any element is inspected."
+    },
+    "link/invalid/routes-wrong-type.json": {
+      "sha256": "fbbae616bf72e791034f49ad6eaf560c67e147fe01a2d738569b5fac2987f5c7",
+      "bytes": 444,
+      "entryPoint": "appLink",
+      "expect": "routes.type",
+      "note": "routes is an object."
+    },
+    "link/invalid/unknown-member-looks-optional.json": {
+      "sha256": "b9155a2408f6e962de95ba01d7ef3585224e5d280c973ec0dc5231cee2ee4dc3",
+      "bytes": 665,
+      "entryPoint": "appLink",
+      "expect": "link.unknownMember",
+      "note": "An unexpected top-level member with an empty value is still rejected."
+    },
+    "link/invalid/unknown-member.json": {
+      "sha256": "9312524ae5ca0413597a1101774cfcf5c55adc4a4a62e8cd17fb272f35e8b55e",
+      "bytes": 675,
+      "entryPoint": "appLink",
+      "expect": "link.unknownMember",
+      "note": "An unexpected top-level member. Version 1 rejects unknown members; the version is the only extension point."
+    },
+    "link/invalid/url-empty-parameter.url": {
+      "sha256": "259b43df0bc6ea0266bf98384217b450e1d0f60c00d269a4cfc5785df4e2cf86",
+      "bytes": 29,
+      "entryPoint": "appLink",
+      "expect": "url.query",
+      "note": "The d value is empty."
+    },
+    "link/invalid/url-extra-parameter.url": {
+      "sha256": "3de24636f6cadb442761df6b28fe605bbed6c1cb52c6fc16c4d6b65f7e68d433",
+      "bytes": 717,
+      "entryPoint": "appLink",
+      "expect": "url.query",
+      "note": "More than one query item."
+    },
+    "link/invalid/url-fragment.url": {
+      "sha256": "289049bace9d6882af0cc3e808820eb5b039ca9a719f1a01c977a0fd1e969cd4",
+      "bytes": 708,
+      "entryPoint": "appLink",
+      "expect": "url.fragment",
+      "note": "A fragment is present."
+    },
+    "link/invalid/url-missing-parameter.url": {
+      "sha256": "6f75b0f2e8bf548dedb16d3e7abd0c8f8a7af0a4e6f54660e7def0f097b002fa",
+      "bytes": 26,
+      "entryPoint": "appLink",
+      "expect": "url.query",
+      "note": "No query item at all."
+    },
+    "link/invalid/url-no-path.url": {
+      "sha256": "3532ee43d487c5b032ce16ca987e28d7e4468fab8364f6b0a91319ea97c869df",
+      "bytes": 701,
+      "entryPoint": "appLink",
+      "expect": "url.path",
+      "note": "Path is empty."
+    },
+    "link/invalid/url-oversized.url": {
+      "sha256": "a84a52b7ff41b56bc0b6dfaa5fb2e4278180b72b598bcc7631b92e2d76270835",
+      "bytes": 5492,
+      "entryPoint": "appLink",
+      "expect": "url.length",
+      "note": "Encoded-length guard: the d value is 5463 characters so the absolute URL is 5491 bytes, one over the 5490-byte limit, refused before any decode. No URL that passes url.length can decode to more than 4096 bytes."
+    },
+    "link/invalid/url-repeated-parameter.url": {
+      "sha256": "a10ab52245d12ca8395ade90c1b16e74df3429eab0a9537651c64346a212494b",
+      "bytes": 1382,
+      "entryPoint": "appLink",
+      "expect": "url.query",
+      "note": "The d parameter appears twice."
+    },
+    "link/invalid/url-wrong-host.url": {
+      "sha256": "d1db17172f168ad19099b2a7306d19a89e93f88c8ba417fffbacb2551e3184cd",
+      "bytes": 704,
+      "entryPoint": "appLink",
+      "expect": "url.host",
+      "note": "Host is not handoff."
+    },
+    "link/invalid/url-wrong-parameter-name.url": {
+      "sha256": "cc31e3868f2128bee9acfe1a322a3ae5621ca78591a2e0cfbe85d235a2f7a1a0",
+      "bytes": 713,
+      "entryPoint": "appLink",
+      "expect": "url.query",
+      "note": "Parameter name is not exactly d."
+    },
+    "link/invalid/url-wrong-path.url": {
+      "sha256": "4aa28bd83af8ce33a54325c255473e460936d7e4713da294d220686359aeb617",
+      "bytes": 704,
+      "entryPoint": "appLink",
+      "expect": "url.path",
+      "note": "Path is not /v1. A version 2 descriptor stops here without being decoded."
+    },
+    "link/invalid/url-wrong-scheme.url": {
+      "sha256": "bb730dc619c52317b9238db913fd2aab0346977aee0aba2c4f519f9a85f55e79",
+      "bytes": 706,
+      "entryPoint": "appLink",
+      "expect": "url.scheme",
+      "note": "Scheme is not plank-vision."
+    },
+    "link/invalid/version-missing-with-unknown-member.json": {
+      "sha256": "68da387d96a12e480ef2f45c08ba57bc32c4094d5be2052ab1d4f618a232b99f",
+      "bytes": 659,
+      "entryPoint": "appLink",
+      "expect": "version.missing",
+      "note": "ORDERING FIXTURE. Both the version check and the unknown-member check could claim this payload; r1 was ambiguous. version is privileged and fully resolved first, so the only correct reason is version.missing."
+    },
+    "link/invalid/version-missing.json": {
+      "sha256": "4512f18852cb738faa6cd30b4b1dfc5451fd9d81279c1dca492ac00749733b0a",
+      "bytes": 634,
+      "entryPoint": "appLink",
+      "expect": "version.missing",
+      "note": "version is absent."
+    },
+    "link/invalid/version-non-integer.json": {
+      "sha256": "d0be444757786ab7e79b1640f48ff0d64549d3503712b8bbce53cbc5194540ff",
+      "bytes": 652,
+      "entryPoint": "appLink",
+      "expect": "version.type",
+      "note": "version is a non-integral number."
+    },
+    "link/invalid/version-unsupported-with-unknown-member.json": {
+      "sha256": "8fe4634e3fe094b70f4d11495c3381d196bf46a1c61df69186f43b318439528c",
+      "bytes": 675,
+      "entryPoint": "appLink",
+      "expect": "version.unsupported",
+      "note": "ORDERING FIXTURE. version is resolved before the member-set check, so the only correct reason is version.unsupported."
+    },
+    "link/invalid/version-unsupported.json": {
+      "sha256": "66e17f437ba5a9eeab0773c81756369248969856eae3062638636399de15d6f5",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "version.unsupported",
+      "note": "version is 2."
+    },
+    "link/invalid/version-wrong-type.json": {
+      "sha256": "7165629111a55605c286d2170624ef0c82e23b5008c9a91f1c09dbeaa75b991f",
+      "bytes": 652,
+      "entryPoint": "appLink",
+      "expect": "version.type",
+      "note": "version is a string."
+    },
+    "link/invalid/version-zero.json": {
+      "sha256": "f027775db9480e8e05d5ba64336824016cbeffd001fbd89db347832f5c2d5680",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "version.unsupported",
+      "note": "version is 0."
+    },
+    "link/trust/mismatched-drawing-identity.json": {
+      "sha256": "d93ac0728d757b5d186b9418597b997fc8cb9e4595a20dd4602ef4d524ce2778",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "trust.drawingIdentityMismatch",
+      "note": "Parses cleanly. A pin already exists for this relay under a different drawing key. Do not replace the pin and do not delete the approval."
+    },
+    "link/trust/replayed-request.json": {
+      "sha256": "80e03a58d9f7cf34d605f2b71f05782870e694ab191b143949aef7f7f2346ab3",
+      "bytes": 539,
+      "entryPoint": "appLink",
+      "expect": "requestID.duplicate",
+      "note": "Same requestID as link/valid/known-identity.json with different content. After the canonical link is accepted this is deduplicated and is never treated as proof of trust."
+    },
+    "link/trust/replayed-request.url": {
+      "sha256": "bcd6a8d629dafc5615a5c6e9291d7ea2eb691a8f62180261f40b3b6751343365",
+      "bytes": 612,
+      "entryPoint": "appLink",
+      "expect": "requestID.duplicate",
+      "note": "App link form."
+    },
+    "link/trust/unknown-drawing-identity.json": {
+      "sha256": "f157006ef6c38f54b84f3f900879801c7312c440d38a06453779dbeb4fef70ec",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "trust.unknownDrawingIdentity",
+      "note": "Parses cleanly. No saved pin matches, so PLANK must route to its existing explicit drawing-approval flow. Never auto-approve."
+    },
+    "link/trust/unknown-drawing-identity.url": {
+      "sha256": "82c4523b86e1c97daeb856d5e8708f21b50b5ee1985aa88b6fea82d370310a95",
+      "bytes": 704,
+      "entryPoint": "appLink",
+      "expect": "trust.unknownDrawingIdentity",
+      "note": "App link form."
+    },
+    "link/valid/duplicate-routes.json": {
+      "sha256": "e8d39c1901c15d7c78957615b8ea69f07220c6e1bb20d84a0e7de9dfc51535f8",
+      "bytes": 636,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "Two byte-identical routes deduplicate rather than reject; two routes survive."
+    },
+    "link/valid/known-identity.json": {
+      "sha256": "2714c5f067a061d7abf67309629bc1673ef847cd5d6b10e4808565bfb42676cf",
+      "bytes": 650,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "Canonical descriptor: known drawing identity, two routes with interface metadata. Pretty-printed, so it is NOT byte-identical to the payload decoded from known-identity.url; compare parsed values."
+    },
+    "link/valid/known-identity.url": {
+      "sha256": "ede59c261495f1d20dd65162321c115c86a2c3aa641cb29173ca923a2c94bb56",
+      "bytes": 704,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "Canonical app link. Its d value decodes to the 506-byte compact form of the same object."
+    },
+    "link/valid/max-routes.json": {
+      "sha256": "2f3acc63808f60ef20f0b484d87c37b094ff3fb6d2f14796d34bd2c3f5901f87",
+      "bytes": 1327,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "Exactly eight routes, the upper bound."
+    },
+    "link/valid/minimal.json": {
+      "sha256": "f7fa300c74a2a2c1c5ee1da8bf4bcb788a65fec61f4db94d6358ef3afd28ebfb",
+      "bytes": 472,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "Single route, both optional route members absent."
+    },
+    "link/valid/minimal.url": {
+      "sha256": "d142178e3025c84ae178c3a2406a27cbe3e60dc2051a759b30d8a0af3c465acf",
+      "bytes": 544,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "App link for minimal.json."
+    },
+    "link/valid/sibling-members-not-duplicate.json": {
+      "sha256": "1b0f43688ff9cd2bfe1844caf38a3d263cfc373060d10de1a7283c7967bdef8f",
+      "bytes": 545,
+      "entryPoint": "appLink",
+      "expect": "accept",
+      "note": "Control for the duplicate rule: the same member names appear in two sibling routes elements. That is normal and MUST be accepted. Duplicates are compared within one object scope only."
+    },
+    "local/invalid/bound-address-broadcast.json": {
+      "sha256": "e028362294cc359650f8bdda70e36709ced9bbbed25accb7675092956e9f878b",
+      "bytes": 369,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.invalid",
+      "note": "A listener cannot usefully bind the broadcast address."
+    },
+    "local/invalid/bound-address-hostname.json": {
+      "sha256": "92a10f2b4e4904c4b385a04064e358508599bbdbc9127a3b31bfd9484b2c2832",
+      "bytes": 367,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.notLiteral",
+      "note": "A host name is not a bind literal."
+    },
+    "local/invalid/bound-address-ipv6.json": {
+      "sha256": "dd8cc3a7d3c6051d420865c5b9fc6760bcde0c711fee9ddc67f2bd254ff71ba7",
+      "bytes": 365,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.familyUnsupported",
+      "note": "The listener has no IPv6 socket."
+    },
+    "local/invalid/bound-address-missing.json": {
+      "sha256": "a9133cf616cdbdc423e2e45312f2b4d26f39b92ded19416e64eb907ceeb52e99",
+      "bytes": 330,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.missing",
+      "note": "boundAddress is absent."
+    },
+    "local/invalid/bound-address-multicast.json": {
+      "sha256": "10be1431647f3260edab95e6c2211e2fe63b913bd457935f5d3caaa02ce09665",
+      "bytes": 363,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.invalid",
+      "note": "A listener cannot usefully bind a multicast address."
+    },
+    "local/invalid/bound-address-non-canonical.json": {
+      "sha256": "682b540cd5b32cb3d2599f268dadbe9ab5d20cc428a130179e499b5790684440",
+      "bytes": 369,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.nonCanonical",
+      "note": "Leading zeros in a dotted quad, settled by the contract 7.4a dotted-quad grammar rather than by whichever platform parser the consumer happens to use."
+    },
+    "local/invalid/bound-address-too-long.json": {
+      "sha256": "af958670773c42add13c1517511391a6d7f232757f206cd9ee58fdd1142b2f17",
+      "bytes": 370,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.tooLong",
+      "note": "16 bytes; the bound is 15, the longest IPv4 literal."
+    },
+    "local/invalid/bound-address-zero-net.json": {
+      "sha256": "0d922e9557818e72e9cf4fd2b49ad87683917cdc57ab4bd0dec2b4052d69ffd7",
+      "bytes": 361,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundAddress.invalid",
+      "note": "Inside 0.0.0.0/8 but not the unspecified address itself."
+    },
+    "local/invalid/bound-port-65536.json": {
+      "sha256": "f900afbe65be0a4fa150f784f7b6e8752a7719fa477e70a92dfb884cfe5877fc",
+      "bytes": 364,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundPort",
+      "note": "Port 65536."
+    },
+    "local/invalid/bound-port-missing.json": {
+      "sha256": "86f30258973495efae649dc9fc496e6ce3791979df751e23f2ee594498548aef",
+      "bytes": 340,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundPort.missing",
+      "note": "boundPort is absent."
+    },
+    "local/invalid/bound-port-zero.json": {
+      "sha256": "7a38de087debbb9c01ee3627eceb995413f211e16b6a510e58eca08d2855ec05",
+      "bytes": 360,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.boundPort",
+      "note": "Port 0."
+    },
+    "local/invalid/envelope-not-object.json": {
+      "sha256": "90b8113416394814334ba04942397fa21bc9474d974c33bc6cac9a09f47ac471",
+      "bytes": 16,
+      "entryPoint": "localMetadata",
+      "expect": "payload.notObject",
+      "note": "The local response is not a JSON object."
+    },
+    "local/invalid/envelope-ok-false.json": {
+      "sha256": "5d3eb0734c251f734706d8051ce98ff94a46c8fbd307dace9842c7429f18a0dd",
+      "bytes": 365,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.ok",
+      "note": "An ok:false response is an error reply, not metadata; the managed service reports service.invalid."
+    },
+    "local/invalid/envelope-ok-missing.json": {
+      "sha256": "b16bea2ee06ba4587212896208260ecca4e48eed63b40891d872f31f282e7859",
+      "bytes": 350,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.ok.missing",
+      "note": "ok is absent."
+    },
+    "local/invalid/envelope-ready-without-listener.json": {
+      "sha256": "3a8d154854e4a7e12b4d1cd2a4d1f7271930ce368bc229326b3bb44e3c029a78",
+      "bytes": 74,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.listener.missing",
+      "note": "state is ready with no listener."
+    },
+    "local/invalid/envelope-state-bad.json": {
+      "sha256": "72e8ed951a6ad8c17a89c517ba9c1b8280184e8be7b8321f116a954d04b04292",
+      "bytes": 367,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.state",
+      "note": "state outside the frozen set."
+    },
+    "local/invalid/envelope-state-missing.json": {
+      "sha256": "8fd994eb7a50f934a208f7ea04043805cd86cc52046ebad3abdc7ac6b86c065e",
+      "bytes": 344,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.state.missing",
+      "note": "state is absent."
+    },
+    "local/invalid/envelope-supported-missing.json": {
+      "sha256": "705d42563f58f4aa277167895c643a5087f7827e4add85d5140d55ae9b0ed398",
+      "bytes": 343,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.supported.missing",
+      "note": "supported is absent."
+    },
+    "local/invalid/envelope-unavailable-with-listener.json": {
+      "sha256": "29c13e572ea3821bcd50bbd942c6aca30264190af7015708261a1bf01d1d584a",
+      "bytes": 400,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.listener.unexpected",
+      "note": "state is unavailable but a listener is present."
+    },
+    "local/invalid/envelope-unavailable-without-reason.json": {
+      "sha256": "062cd1c80e75f0e01f85b05cfbe417f5761d3798a4e04887410fab64e1103ef0",
+      "bytes": 80,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.reason.missing",
+      "note": "state is unavailable with no reason."
+    },
+    "local/invalid/envelope-unknown-member.json": {
+      "sha256": "2bc38ab5d5af04e209f6ea48a4854e84230859d6d0c93aa4d4a01c5b446aa2e0",
+      "bytes": 382,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.unknownMember",
+      "note": "An unexpected envelope member."
+    },
+    "local/invalid/envelope-version-missing.json": {
+      "sha256": "aeab4caaff03d98f501604934366f9773225e97e06e0cdeeb42b2be2be5a74ca",
+      "bytes": 348,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.version.missing",
+      "note": "The envelope version is absent."
+    },
+    "local/invalid/envelope-version-wrong-with-unknown-member.json": {
+      "sha256": "7e7e3eac81254fbe8496e02e1326e8e0f55c3a76c67d561436718c1520daec73",
+      "bytes": 382,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.version.unsupported",
+      "note": "ORDERING FIXTURE. The envelope version is privileged and resolved before the member-set check, exactly as for an app link."
+    },
+    "local/invalid/envelope-version-wrong.json": {
+      "sha256": "77f5c0e8570dd6df73cefea3efebd6bd015693e5ba9bbe254b07ba436e7f0308",
+      "bytes": 364,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.version.unsupported",
+      "note": "The envelope version is 2."
+    },
+    "local/invalid/listener-array.json": {
+      "sha256": "77bb236cad0abf8cbc543c392bac774d01c62e3e9861127626fc8060f80925e9",
+      "bytes": 92,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.listener.type",
+      "note": "listener is an array; same ordering rule."
+    },
+    "local/invalid/listener-has-request-id.json": {
+      "sha256": "79b703f89896955337c0a4207b34725a79825843942998a59793f2dcce4a01ab",
+      "bytes": 421,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.unknownMember",
+      "note": "requestID is forbidden in local metadata."
+    },
+    "local/invalid/listener-has-routes.json": {
+      "sha256": "fa51a37f0c9fb66676cac5b6b0d76b97752ca617f07c6f8e761d1504535c8729",
+      "bytes": 458,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.unknownMember",
+      "note": "routes are FORBIDDEN in local metadata. The raw service reports its bind; the managed service produces routes."
+    },
+    "local/invalid/listener-missing-identity.json": {
+      "sha256": "7463aaf220e5d58a923bd92a724dd1c2fcd8c2306b033aa255e9ba5f1ca9ecee",
+      "bytes": 273,
+      "entryPoint": "localMetadata",
+      "expect": "drawingIdentity.missing",
+      "note": "drawingIdentity is absent."
+    },
+    "local/invalid/listener-not-object.json": {
+      "sha256": "3594f0ab3e5c6258028e9208e1fc6c1792af1d84827b1a9d6361fec17ef9d2a5",
+      "bytes": 97,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.listener.type",
+      "note": "listener is a string. The object-ness of listener is checked BEFORE anything inside it, so this reports metadata.envelope.listener.type and never a member-level reason."
+    },
+    "local/invalid/listener-null.json": {
+      "sha256": "a4554eefed0bf97c6a037d5bc69960272c0de0efcb6b509a7a36ca70e0966d4f",
+      "bytes": 94,
+      "entryPoint": "localMetadata",
+      "expect": "metadata.envelope.listener.type",
+      "note": "listener is null; same ordering rule."
+    },
+    "local/invalid/oversized.json": {
+      "sha256": "9f5a393f9afdced59720a456df4048ed1cbdb286103e1ead1e096f9d9fbf9669",
+      "bytes": 4097,
+      "entryPoint": "localMetadata",
+      "expect": "payload.length",
+      "note": "Exactly 4097 bytes, one over the 4096-byte local response bound."
+    },
+    "local/valid/link-local.json": {
+      "sha256": "8a1dafcf59aa86acc6686f680921a3e187cb6aeb10b4274112ecbc8aba7e144e",
+      "bytes": 367,
+      "entryPoint": "localMetadata",
+      "expect": "accept",
+      "note": "A link-local bind is accepted as metadata because it is a legal bind; conversion refuses it with listener.noUsableAddress."
+    },
+    "local/valid/literal.json": {
+      "sha256": "b3461dd855563c4f8a69a40a0527a03badde673ae3bae2e3be4280d2478a2dfc",
+      "bytes": 364,
+      "entryPoint": "localMetadata",
+      "expect": "accept",
+      "note": "A bound unicast literal."
+    },
+    "local/valid/loopback.json": {
+      "sha256": "2c34768463b2c9b1fbd3325db8c9d3fdbdcad8eb59c4cccbd02aa4d7384292cc",
+      "bytes": 363,
+      "entryPoint": "localMetadata",
+      "expect": "accept",
+      "note": "LOOPBACK IS LEGAL HERE AND ONLY HERE. 127.0.0.1 is the unconfigured default from the unit Environment (src/main.cpp:114) and is honest metadata; conversion turns it into listener.loopbackOnly."
+    },
+    "local/valid/unavailable.json": {
+      "sha256": "9407c06a5283f127748439802be509090a512223e82235e615c3cdbcdd66f972",
+      "bytes": 110,
+      "entryPoint": "localMetadata",
+      "expect": "accept",
+      "note": "An unavailable local response with a reason and no listener."
+    },
+    "local/valid/wildcard.json": {
+      "sha256": "db1424b66eadc85d21250771b959b3901687a22eb3f8080211e88cd19088391f",
+      "bytes": 361,
+      "entryPoint": "localMetadata",
+      "expect": "accept",
+      "note": "WILDCARD IS LEGAL HERE AND ONLY HERE. 0.0.0.0 is the truth about the listener and is the production reality on the installed development Relay; it is resolved at conversion and never carried into a descriptor. The raw service reports the address it is ACTUALLY BOUND TO, never a re-read of configuration."
+    },
+    "migration/legacy-divergent-keys.json": {
+      "sha256": "b66aa1d8d02c80631f80c6b49db0dd5a6cc4c69dae9452107a375383d8ee73f6",
+      "bytes": 1467,
+      "entryPoint": "migration",
+      "expect": "migration.pinConflict",
+      "note": "Two legacy accounts hold different 32-byte keys, so two different Relays were approved. Surface an explicit conflict state, write nothing, delete nothing, and never pick one, prefer the newest, prefer the service over the address, or merge them."
+    },
+    "migration/legacy-matching-keys.json": {
+      "sha256": "49a97f6a0b3537c3e22b1df8325a4a3e0de969de90e037fda8d28103fd4f0a3b",
+      "bytes": 1547,
+      "entryPoint": "migration",
+      "expect": "migration.clean",
+      "note": "Both legacy accounts hold the same 32-byte key, which is what useSavedPairing and useManualPairing already produce. Clean, additive, rollback-safe migration."
+    },
+    "migration/legacy-single-account.json": {
+      "sha256": "39e1593a8da968f7cf07164c2e774bae5221e2767be835e721c5a4e0f4647ce7",
+      "bytes": 1235,
+      "entryPoint": "migration",
+      "expect": "migration.clean",
+      "note": "One legacy manual account. The identity-indexed record is created and the legacy record stays in place and readable, so a rollback still finds its pin."
+    },
+    "status/invalid/descriptor-array.json": {
+      "sha256": "1b0e6e9a32e6d72d2567f7deff0638a0e1bb19abbdb83f636f13b8bfd3b0a3bb",
+      "bytes": 64,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.descriptor.type",
+      "note": "descriptor is an array; same ordering rule."
+    },
+    "status/invalid/descriptor-not-object.json": {
+      "sha256": "a9208900a3926765be7d96c61b53933cdf9d4e13fc50dbeba9a958e9e3746595",
+      "bytes": 69,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.descriptor.type",
+      "note": "descriptor is a string. The object-ness of descriptor is checked BEFORE anything inside it, so this reports status.descriptor.type and never a member-level reason."
+    },
+    "status/invalid/descriptor-null.json": {
+      "sha256": "82941c496abdd0005111fa217d62246c49be7f967b852b5712cc8606cc1d01af",
+      "bytes": 66,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.descriptor.type",
+      "note": "descriptor is null; same ordering rule."
+    },
+    "status/invalid/empty-routes.json": {
+      "sha256": "bf6343d6d9fb475c8bb744e88d07a4349ff82da3061f25d100eb00cd5b6c6a8a",
+      "bytes": 314,
+      "entryPoint": "statusDescriptor",
+      "expect": "routes.count",
+      "note": "A ready descriptor must carry at least one route."
+    },
+    "status/invalid/missing-identity.json": {
+      "sha256": "19d9cb0cb203931cebc2c810984e4ba48bfe5bfde2b67ee954dc46f9bea70650",
+      "bytes": 353,
+      "entryPoint": "statusDescriptor",
+      "expect": "drawingIdentity.missing",
+      "note": "A status descriptor without a drawing identity."
+    },
+    "status/invalid/missing-routes.json": {
+      "sha256": "af03dffc5a6d79e9eea5e1a234116098c4647f3fdef57ae6552e8e450e408fb2",
+      "bytes": 296,
+      "entryPoint": "statusDescriptor",
+      "expect": "routes.missing",
+      "note": "A status descriptor without routes."
+    },
+    "status/invalid/missing-version.json": {
+      "sha256": "ed828287d0565ebd9c63b45911aa3dfed80715e6bc371933141442b0eb8cb2dc",
+      "bytes": 426,
+      "entryPoint": "statusDescriptor",
+      "expect": "version.missing",
+      "note": "The descriptor version is required."
+    },
+    "status/invalid/route-loopback.json": {
+      "sha256": "e32fba2db8e3eaed17dbf39c855043c9d5d8364efccb0f2b51e6fe34e418296a",
+      "bytes": 389,
+      "entryPoint": "statusDescriptor",
+      "expect": "route.address.loopback",
+      "note": "A loopback address must never escape conversion into the managed descriptor."
+    },
+    "status/invalid/route-wildcard.json": {
+      "sha256": "2e3a47b0fd865f54f614f5f809524636ccc04610256a9088353bca190055f9ea",
+      "bytes": 387,
+      "entryPoint": "statusDescriptor",
+      "expect": "route.address.unspecified",
+      "note": "A wildcard address must never escape conversion into the managed descriptor."
+    },
+    "status/invalid/version-unsupported.json": {
+      "sha256": "2a83acb60cab02d5ffd55128d2a004a0e275ebc95f12e58a9fa7d4c779ccdc40",
+      "bytes": 444,
+      "entryPoint": "statusDescriptor",
+      "expect": "version.unsupported",
+      "note": "The descriptor version is 2."
+    },
+    "status/invalid/with-display-name.json": {
+      "sha256": "8009c865818a897e16b131792614dec844aa4c122e80177c78ab3f28ecd1a47b",
+      "bytes": 479,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.unknownMember",
+      "note": "displayName is forbidden here; hostname is already in the status."
+    },
+    "status/invalid/with-management-identity.json": {
+      "sha256": "789c7e5d8965e284c992c11b0172f472db846abdc1c68adffc310766fa5385e4",
+      "bytes": 538,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.unknownMember",
+      "note": "managementIdentity is forbidden here; relayKey is already in the same status response."
+    },
+    "status/invalid/with-request-id.json": {
+      "sha256": "11dad3c82c0c8a6d34f35853962ead988209c01bb01519007f50c275bd16b102",
+      "bytes": 501,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.unknownMember",
+      "note": "requestID is FORBIDDEN in a status descriptor and is never required of one. Requiring it was the r1 defect: it would make every honest status response invalid. Setup mints it per app link."
+    },
+    "status/invalid/wrapper-bad-state.json": {
+      "sha256": "254f2853e2028edfa128a820f8e0765d1d589bbd532e7b1a9a9eda0b1b359551",
+      "bytes": 447,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.state",
+      "note": "state outside the frozen set."
+    },
+    "status/invalid/wrapper-missing-state.json": {
+      "sha256": "64f9512d6e17fe2ac23f5a641b457b0cb15a6b90fd1e0e802c5391c46e4575a1",
+      "bytes": 424,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.state.missing",
+      "note": "state is absent."
+    },
+    "status/invalid/wrapper-ready-without-descriptor.json": {
+      "sha256": "5fd73ce41a91815ca0ae6f1172f71189d37a56f8fa34ad33e0242a14f3ad4381",
+      "bytes": 44,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.descriptor.missing",
+      "note": "state is ready but no descriptor is present."
+    },
+    "status/invalid/wrapper-unavailable-with-descriptor.json": {
+      "sha256": "48e80db7b512200cbb7f9633974a5f8abf0326a3b5f72c780f58ff42f5c13d47",
+      "bytes": 480,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.descriptor.unexpected",
+      "note": "state is unavailable but a descriptor is present; exactly one of descriptor and reason may appear."
+    },
+    "status/invalid/wrapper-unavailable-without-reason.json": {
+      "sha256": "5ed877d638679d945b4b5287afe2d6a92a4a84d20acb056f12d32dd75c18dcba",
+      "bytes": 50,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.reason.missing",
+      "note": "state is unavailable with no reason."
+    },
+    "status/invalid/wrapper-unknown-member.json": {
+      "sha256": "ca539b1172387322369fe8d2cdb41169aa7cd6997054aea0b5c3387e1b8f0807",
+      "bytes": 462,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.unknownMember",
+      "note": "An unexpected wrapper member."
+    },
+    "status/invalid/wrapper-unknown-reason.json": {
+      "sha256": "776cdda75bf6b593ddf41590f1f3f299f29ab8921b738d2cef0f5f0487762e12",
+      "bytes": 80,
+      "entryPoint": "statusDescriptor",
+      "expect": "status.reason",
+      "note": "reason is not one of the frozen outcome reasons."
+    },
+    "status/valid/ready.json": {
+      "sha256": "2c473c908d44709b1f5c5a41c2a1202e5bc922d2a9475b29eafd74e21765d348",
+      "bytes": 444,
+      "entryPoint": "statusDescriptor",
+      "expect": "accept",
+      "note": "Managed status drawingHandoff: wrapper plus a descriptor with exactly version, drawingIdentity, drawingProtocol and routes."
+    },
+    "status/valid/unavailable-loopback-only.json": {
+      "sha256": "c6cdd4881e0b7d67b015c4ac32c4c4d737bf6e1847464cb9dd70ebc5b2372e1e",
+      "bytes": 87,
+      "entryPoint": "statusDescriptor",
+      "expect": "accept",
+      "note": "The installed-default bind reported as an unavailable drawing endpoint."
+    },
+    "status/valid/unavailable-peer-unverified.json": {
+      "sha256": "d548e37aee4680297a55485e3870fbbcb7db2defd7f6163446fa9cd0871fd44f",
+      "bytes": 88,
+      "entryPoint": "statusDescriptor",
+      "expect": "accept",
+      "note": "ABSTRACT NAME BOUND BY THE WRONG UID. Something answered and it was not the raw service, so the client's own SO_PEERCRED check fired and the reason is service.peerUnverified, NOT service.absent. Contrast with unavailable.json. The client cannot and need not tell why the wrong peer holds the name; it only reports that the peer is unverified."
+    },
+    "status/valid/unavailable.json": {
+      "sha256": "21a0f7bb240c4c7c534e0698c9de7608c2ae22bf8de6e05545e5ff63c3ee27f9",
+      "bytes": 80,
+      "entryPoint": "statusDescriptor",
+      "expect": "accept",
+      "note": "ABSTRACT NAME NOT BOUND. Nothing answered, so connect() failed and the reason is service.absent. Contrast with unavailable-peer-unverified.json: these two outcomes must not be conflated, because reporting a squatter as a missing service hides a hostile condition."
+    }
+  }
+}

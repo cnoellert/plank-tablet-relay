@@ -1,14 +1,18 @@
 #include "session_dispatcher.hpp"
 
+#include <cstdio>
 #include <cstring>
+#include <exception>
 #include <utility>
 #include <vector>
 
 PltrSessionDispatcher::PltrSessionDispatcher(
     std::function<void()> wake,
-    LinuxRawWacomInput::GenerationProvider generation_provider)
+    LinuxRawWacomInput::GenerationProvider generation_provider,
+    std::string capture_lease_name)
     : wake_(std::move(wake)),
-      generation_provider_(std::move(generation_provider)) {}
+      generation_provider_(std::move(generation_provider)),
+      capture_lease_(std::move(capture_lease_name)) {}
 
 PltrSessionDispatcher::~PltrSessionDispatcher() { close(); }
 
@@ -17,8 +21,36 @@ bool PltrSessionDispatcher::accept(const PltrFrame &frame) {
     switch (frame.type) {
     case PLTR_SESSION_READY:
         if (worker_ != nullptr || frame.payload_size != 5) return false;
-        worker_ = std::make_unique<PltrWorkerBridge>(wake_, generation_provider_);
-        worker_->setActive(frame.payload[4] != 0);
+        {
+            int lease_error = 0;
+            const auto acquired = capture_lease_.acquire(&lease_error);
+            if (acquired != PltrCaptureLease::AcquireResult::Acquired) {
+                if (acquired == PltrCaptureLease::AcquireResult::Busy) {
+                    std::fputs("Wacom capture busy: another tablet service owns "
+                               "the tablet; refusing PLANK session\n", stderr);
+                } else {
+                    std::fprintf(stderr, "Wacom capture lease unavailable (%s); "
+                                 "refusing PLANK session\n",
+                                 std::strerror(lease_error));
+                }
+                return false;
+            }
+        }
+        try {
+            worker_ = std::make_unique<PltrWorkerBridge>(wake_, generation_provider_);
+            worker_->setActive(frame.payload[4] != 0);
+        } catch (const std::exception &error) {
+            std::fprintf(stderr, "Wacom worker failed to start: %s\n", error.what());
+            worker_.reset();
+            capture_lease_.release();
+            return false;
+        } catch (...) {
+            std::fputs("Wacom worker failed to start; refusing PLANK session\n",
+                       stderr);
+            worker_.reset();
+            capture_lease_.release();
+            return false;
+        }
         return true;
     case PLTR_SESSION_ACTIVE:
         if (!worker_ || frame.payload_size != 1) return false;
@@ -70,6 +102,7 @@ int PltrSessionDispatcher::next(PltrLink &link, std::uint8_t *out,
 void PltrSessionDispatcher::close() {
     ended_ = true;
     worker_.reset();
+    capture_lease_.release();
 }
 
 bool PltrSessionDispatcher::failed() const {
